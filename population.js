@@ -1,7 +1,7 @@
 import NNEt from "./nnet";
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class Population {
-    constructor(populationSize, evolutionRate, inputShape = [[1],[2],[2]], numberOfOutputs = 2) {
+    constructor(populationSize, evolutionRate = 1.1, inputShape = [[1],[2],[2]], numberOfOutputs = 2) {
         this.genomes = [];
         this.species = [];
         this.size = populationSize;
@@ -124,6 +124,7 @@ let Genome = function(inputShape, numberOfOutputs, evolutionRate) {
     this.nnet = new NNEt(inputShape, 3, 1, numberOfOutputs, evolutionRate, true);
     this.car;
     this.species;
+    this.inputs = [];
 
     this.getWeights = function() {
         return this.nnet.getWeights();
@@ -133,31 +134,33 @@ let Genome = function(inputShape, numberOfOutputs, evolutionRate) {
     }
 
     this.activate = function(inputs) {
+        inputs.push[inputs];
         return this.nnet.fire([[inputs[2]], [inputs[0], inputs[1]], [inputs[3], inputs[4]]])
     }
     this.evolve = function() {
-        let a = Math.random();
+
+        let evolutions = randomInteger(0, 3);
+        let inputId = randomInteger(0, this.inputs.length - 1)
         let b = Math.random();
-        let evolutions = randomInteger(0, 60);
-        
+        let a = Math.random();
         for (let i = 0; i < evolutions; i++) {
-            this.nnet.train(null, [[a],[b]])
+            this.nnet.train(this.inputs[inputId], [[a],[b]])
         }
-
+        this.inputs = [];
     }
 
-    this.evolve1 = function() {
-          let a = randomInteger(0, 3);
-          let b = randomInteger(0, 3);
+    // this.evolve1 = function() {
+    //       let a = randomInteger(0, 3);
+    //       let b = randomInteger(0, 3);
 
-          a = a === 0 ? .5 : (a === 1 ? 1 : 0);
-          b = b === 0 ? .5 : (b === 1 ? 1 : 0);
+    //       a = a === 0 ? .5 : (a === 1 ? 1 : 0);
+    //       b = b === 0 ? .5 : (b === 1 ? 1 : 0);
 
-          let evolutions = randomInteger(0, 60);
-          for (let i = 0; i < evolutions; i++) {
-              this.nnet.train([[Math.random()][Math.random(),Math.random()],[Math.random(),Math.random()]], [[a],[b]])
-        }
-    }
+    //       let evolutions = randomInteger(0, 60);
+    //       for (let i = 0; i < evolutions; i++) {
+    //           this.nnet.train([[Math.random()][Math.random(),Math.random()],[Math.random(),Math.random()]], [[a],[b]])
+    //     }
+    // }
 
     this.injectDNA = function(genomeToInject) {
         let thisGenomeWeights = this.getWeights();
