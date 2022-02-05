@@ -1,7 +1,7 @@
 import NNEt from "./nnet";
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class Population {
-    constructor(populationSize, evolutionRate = 1.1, inputShape = [[1],[2],[2]], numberOfOutputs = 2) {
+    constructor(populationSize, evolutionRate = 0.3, inputShape = [[1],[2],[2]], numberOfOutputs = 2) {
         this.genomes = [];
         this.species = [];
         this.size = populationSize;
@@ -139,12 +139,11 @@ let Genome = function(inputShape, numberOfOutputs, evolutionRate) {
     }
     this.evolve = function() {
 
-        let evolutions = randomInteger(0, 3);
-        let inputId = randomInteger(0, this.inputs.length - 1)
-        let b = Math.random();
-        let a = Math.random();
+        let evolutions = randomInteger(0, 20);
         for (let i = 0; i < evolutions; i++) {
-            this.nnet.train(this.inputs[inputId], [[a],[b]])
+            let b = Math.random();
+            let a = Math.random();
+            this.nnet.train(this.inputs[randomInteger(0, this.inputs.length - 1)], [[a],[b]])
         }
         this.inputs = [];
     }
@@ -193,7 +192,6 @@ let Genome = function(inputShape, numberOfOutputs, evolutionRate) {
         this.setWeights(newWeights);
     }
 }
-
 let Species = function(id) {
     this.id = id;
     this.color = rbg();
