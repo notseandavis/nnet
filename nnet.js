@@ -1,36 +1,34 @@
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class NNEt {
-//     numberOfLayers;
-//     numberOfNodes;
-//     layers;
-//     inputs;
-//     outputs;
-//     lastInputs;
     constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false) {
         // array of inputs
-        // TODO: inputs in particular needs to be cleaner
         this.inputs = inputs;
+        // e.x. [[1], [2], [1]]
+        // the number inside the innner arrays represents the number of inputs for each input node
 
+        // Number of outputs, each output has only one output value (which will always be a number between 0.0 and 1.0)
         this.outputs = outputs;
         
-        // number of nodes in hidden layers
+        // number of nodes in hidden layer(s)
         this.numberOfNodes = numberOfNodes;
 
-        // number of layers
+        // number of hidden layers
         this.numberOfLayers = numberOfLayers;
 
+        // Learning rate
         this.learningRate = learningRate;
         
+        // Randomize initial weights
         this.randomInitialWeights = randomInitialWeights;
         
-        // the actual layers
+        // Here is our array of layers
         this.layers = [];
 
-        this.layers.push([]);
-        
+        // Layer Index
         let i = 0;
-
-        // input layer
+        
+        // Input layer
+        this.layers.push([]);
         let inputId = 0;
         while (this.layers[i].length < inputs.length) {
             this.layers[i].push(new Node(inputs[inputId][0]));
@@ -38,39 +36,37 @@ export default class NNEt {
         }
         i++;
         
-        // TODO: make layers and nodes recursive, this is flat and ugly
+        // Middle layer(s)
         while (this.layers.length < numberOfLayers) {
             this.layers.push([]);
             if (i === 1) {
+                // Layer below the input layer, gets the number of input
                 while (this.layers[i].length < this.numberOfNodes) {
-                    // layer on top of input layer, gets the number of input
                     this.layers[i].push(new Node(inputs.length, this.randomInitialWeights)); 
                 }
             } else {
-                // middle layer
+                // Any middle layer
                 while (this.layers[i].length < this.numberOfNodes) {
-                    // layer on top of input layer, gets the number of nodes
                     this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights)); 
                 }
             }
             i++;
         }
 
-        // output layer
+        // Output layer
         this.layers.push([]);
         while (this.layers[i].length < this.outputs) {
             if (this.layers.length > 2) {
-                // there is a middle layer
+                // There are middle layers, take the number of nodes as the number of inputs
                 this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights));
             } else {
-                // there is not a middle layer
+                // No middle layers, take the input nodes directly
                 this.layers[i].push(new Node(inputs.length, this.randomInitialWeights)); 
             }
         }
-        // this.layers[i].push(new Node(this.numberOfLayers == 1 ? this.inputs.length : this.numberOfNodes)); 
     }
     
-
+    // Get all the weights of the network
     getWeights() {
         return this.layers.map(layer => {
             return layer.map(node => {
@@ -79,6 +75,7 @@ export default class NNEt {
         });
     }
 
+    // Set all the weights in the network
     setWeights(weights) {
         this.layers.forEach((layer, i) => {
             layer.forEach((node, ii) => {
@@ -87,43 +84,40 @@ export default class NNEt {
             });
         });
     }
-    // todo make this recursive
-    train(inputs, expectedOutput) {
+
+    // TODO: Clean this up
+    // Train the network using inputs (or last inputs if not previously provided) and expected outputs
+    train(inputs, expectedOutputs) {
         // console.log("training nnet")
         if (!inputs) {
             inputs = this.lastInputs;
         }
         let allOutputs = this.activateAllLayers(inputs);
-        // start with the delta of the output node
+
+        // Creating an array in the shape of our network so we can store the deltas
         let previousLayersDeltas = Array.apply(null, Array(this.layers.length)).map(function () { return []; });
+        
         // get the delta from the bottom layer, 
         // and walk backwards through the layers
-        let i = (this.layers.length - 1);
-        while( i >= 0) {
+        for (let i = this.layers.length - 1; i >= 0; i--) {
             for (let ii = (this.layers[i].length - 1); ii >= 0; ii--) {
-                // this layer's input is the previous layer's output, or the original input
+                // this layer's input is either the previous layer's output, or the original input
                 let thisLayersInput = i === 0 ? inputs[ii] : allOutputs[i - 1];
-                let thisLayersDelta;
+                
+                // Delta for this node
+                let nodeDelta;
                 if (i === this.layers.length - 1) {
-                    // this is the output layer
-                    let outputDelta = (expectedOutput[ii] - allOutputs[i][[ii]])
-                    thisLayersDelta = outputDelta;
-                    // console.log("training output layer")
-                } else if (i === this.layers.length - 2) {
-                    // this is the layer on top of the output layer
-                    thisLayersDelta = 0;
-                    previousLayersDeltas[i + 1].forEach(delta => { thisLayersDelta += delta; });
-                    // console.log("training layer on top of output layer")
+                    // this is the output layer, so we use the expected output for this node
+                    let outputDelta = (expectedOutputs[ii] - allOutputs[i][[ii]])
+                    nodeDelta = outputDelta;
                 } else {
                     // this is some middle or output layer, add up the previous layers together as they all connect together
-                    thisLayersDelta = 0;
-                    previousLayersDeltas[i + 1].forEach(delta => { thisLayersDelta += delta; });
-                    // console.log("training middle or top layer");
+                    nodeDelta = 0;
+                    previousLayersDeltas[i + 1].forEach(delta => { nodeDelta += delta; });
                 }
-                let nextLayersDelta = this.layers[i][ii].train(thisLayersInput, thisLayersDelta, this.learningRate);
+                let nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
                 previousLayersDeltas[i].push(nextLayersDelta)
             }
-            i--;
         }
     }
 
@@ -134,9 +128,10 @@ export default class NNEt {
             layerOutputs.push([]);
             layer.forEach((node, ii) => {
                 if (i === 0) {
-                    // send the set of inputs for the input layer
+                    // Send the set of inputs for the input layer
                     layerOutputs[i].push(node.fire(inputs[ii]));
                 } else {
+                    // Otherwise, send the output from the previous layer
                     layerOutputs[i].push(node.fire(layerInputs));
                 }
             });
@@ -160,6 +155,8 @@ class Node {
         this.inputs = inputs;
         this.weights = Array.apply(null, Array(inputs)).map(function () { return startingWeight(randomInitialWeights); });
         let bias = 0;
+        
+        // Try to initialize a neutral bias
         this.weights.forEach(weight => {
             if (weight > 0) {
                 bias = bias - weight;
@@ -180,7 +177,6 @@ class Node {
             this.weights[i] += inputs[i] * delta;
         }
         this.bias += delta;
-        // console.log(JSON.stringify(this));
         return delta;
     }
     fire(inputs) {
