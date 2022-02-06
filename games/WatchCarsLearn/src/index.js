@@ -12,7 +12,7 @@ import Runner from "./Runner";
 import User from "./User";
 import updateChart from "./chart";
 import { graph, graphLabels } from "./graph";
-import Population from "./population";
+import Population from "../../../population";
 
 select("body").style.height = window.innerHeight;
 
