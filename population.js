@@ -61,20 +61,17 @@ export default class Population {
 
                 if (this.genomes[i].score > bestScore) {
                     bestScore = this.genomes[i].score;
-                    if (bestScore > this.champ.score) {
-                        // console.log("new best score, old score: " +this.champ.score + " new score" +bestScore);
-                        
-                        this.champ = this.createGenome();
-                        this.champ.setWeights(this.genomes[i].getWeights())
-                        this.champ.score = bestScore;
-                        this.champ.sourceGenomeId = i;
-                    }
+                    bestGenome = i;
                 } else if (this.genomes[i].score < worstScore) {
-                
                     worstScore = this.genomes[i].score;
                     worstGenome = i;
                 }
             }
+
+            // Set best champ
+            this.champ.setWeights(this.genomes[bestGenome].getWeights())
+            this.champ.score = bestScore;
+            this.champ.sourceGenomeId = bestGenome;
 
             for (var m = 0; m < this.species[s].members.length; m++) {
                 if (this.species[s].members[m] === worstGenomeInSpecies) {
