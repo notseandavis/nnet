@@ -17,6 +17,8 @@ const GameScreen = () => {
   const [nNetGuessing, setNNetGuessing] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
   const [gamesPlayed, setGamesPlayed] = useState<number>(0);
+  const [turnsPlayed, setTurnsPlayed] = useState<number>(0);
+  const [gameSpeed, setGameSpeed] = useState<number>(1);
   const [gamesWon, setGamesWon] = useState<number>(0);
   const [disabledLetters, setDisabledLetters] = useState<string[]>([]);
   
@@ -27,7 +29,11 @@ const GameScreen = () => {
       wordToGuess.current = getRandomWord();
       setInputWord('');
       setGuessList([]);
-      window.postMessage('start nnet');
+      setTimeout(() => {
+
+        setTurnsPlayed(turnsPlayed + 1);
+        // window.postMessage('start nnet');
+      },gameSpeed)
     }
     if (running) {
       setGameOver(false)
@@ -36,9 +42,16 @@ const GameScreen = () => {
 
   useEffect(() => {
     if (running === true) {
-      window.postMessage('start nnet');
+      setTurnsPlayed(turnsPlayed + 1);
+      // window.postMessage('start nnet');
     }
   }, [running]);
+
+  useEffect(() => {
+    if (running === true) {
+      runNNet()
+    }
+  }, [turnsPlayed]);
 
   useEffect(() => {
     const guessLen = guessList.length;
@@ -50,7 +63,8 @@ const GameScreen = () => {
     } else if (guessLen === MAX_GUESSES) {
       setGameOver(true);
     } else {
-      window.postMessage('start nnet');
+      setTurnsPlayed(turnsPlayed + 1);
+      // window.postMessage('start nnet');
     }
   }, [guessList]);
 
@@ -90,140 +104,137 @@ const GameScreen = () => {
     [disabledLetters, inputWord],
   );
 
-  const runNNet = useCallback(
-    () => {
-      if (!running) {
-        return;
-      }
-      let disabledLettersInput = new Array<number>();
-      for (let i = 0; i < 26; i++) {
-        disabledLettersInput.push(0);
-      }
+  const runNNet = () => {
+    if (!running) {
+      return;
+    }
+    let disabledLettersInput = new Array<number>();
+    for (let i = 0; i < 26; i++) {
+      disabledLettersInput.push(0);
+    }
 
-      for (let i = 0; i < disabledLetters.length; i++) {
-        let disabledLetter = disabledLetters[i];
-        let disabledLetterIndex = textnnet.letterToIndex(disabledLetter);
-        disabledLettersInput[disabledLetterIndex] = 1;
-      }
+    for (let i = 0; i < disabledLetters.length; i++) {
+      let disabledLetter = disabledLetters[i];
+      let disabledLetterIndex = textnnet.letterToIndex(disabledLetter);
+      disabledLettersInput[disabledLetterIndex] = 1;
+    }
 
-      let presentLettersInput = new Array<number>();
-      let correctLettersInput = new Array<string>();
+    let presentLettersInput = new Array<number>();
+    let correctLettersInput = new Array<string>();
 
-      for (let i = 0; i < 26; i++) {
-        presentLettersInput.push(0);
-      }
-      for (let i = 0; i < 5; i++) {
-        correctLettersInput.push("noletter");
-      }
-      let presentLetters = "";
-      guessList.forEach((guess: string) => {
-        for (let ii = 0; ii < guess.length; ii++) {
-          const thisLetterindex = textnnet.letterToIndex(guess[ii]);
+    for (let i = 0; i < 26; i++) {
+      presentLettersInput.push(0);
+    }
+    for (let i = 0; i < 5; i++) {
+      correctLettersInput.push("noletter");
+    }
+    let presentLetters = "";
+    guessList.forEach((guess: string) => {
+      for (let ii = 0; ii < guess.length; ii++) {
+        const thisLetterindex = textnnet.letterToIndex(guess[ii]);
 
-          if (wordToGuess.current.includes(guess[ii])) {
-            presentLettersInput[thisLetterindex] = 1;
-            presentLetters = presentLetters + guess[ii];
-            if (guess[ii] === wordToGuess.current[ii]) {
-              correctLettersInput[ii] = guess[ii];
-            }
+        if (wordToGuess.current.includes(guess[ii])) {
+          presentLettersInput[thisLetterindex] = 1;
+          presentLetters = presentLetters + guess[ii];
+          if (guess[ii] === wordToGuess.current[ii]) {
+            correctLettersInput[ii] = guess[ii];
           }
         }
-      });
-
-      let guess: string = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-      let originalGuess = guess;
-
-      console.log("NNet guess: " + guess + "")
-      for (let guessedLetter = 0; guessedLetter < 5; guessedLetter++) {
-
-        let letterToCheck =  guess[guessedLetter];
-        // let letterToCheck =  ;
-        while (disabledLetters.includes(guess[guessedLetter])) {
-
-        console.log("original guess contains disabled letter, modifying for training use...")
-          let randomNumber = randomInteger(1, 25);
-          let randomLetter = textnnet.indexToLetter(randomNumber);
-          while (disabledLetters.includes(randomLetter)) {
-            randomNumber = randomInteger(1, 25);
-            randomLetter = textnnet.indexToLetter(randomNumber);
-          }
-          guess = guess.replace(letterToCheck, randomLetter);
-
-         console.log("training guess changed to: " + guess + "")
-        }
       }
+    });
 
-      if (guess != originalGuess) {
-        let newGuess = guess;
-        let timesTrained = 1;
-        textnnet.train(null, wordToGuess.current);
-        guess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-        timesTrained++;
+    let guess: string = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
+    let originalGuess = guess;
+
+    console.log("NNet guess: " + guess + "")
+    for (let guessedLetter = 0; guessedLetter < 5; guessedLetter++) {
+
+      let letterToCheck =  guess[guessedLetter];
+      // let letterToCheck =  ;
+      while (disabledLetters.includes(guess[guessedLetter])) {
+
+      console.log("original guess contains disabled letter, modifying for training use...")
+        let randomNumber = randomInteger(1, 25);
+        let randomLetter = textnnet.indexToLetter(randomNumber);
+        while (disabledLetters.includes(randomLetter)) {
+          randomNumber = randomInteger(1, 25);
+          randomLetter = textnnet.indexToLetter(randomNumber);
+        }
+        guess = guess.replace(letterToCheck, randomLetter);
+
+        console.log("training guess changed to: " + guess + "")
+      }
+    }
+
+    if (guess != originalGuess) {
+      let newGuess = guess;
+      let timesTrained = 1;
+      textnnet.train(null, wordToGuess.current);
+      guess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
+      timesTrained++;
+      console.log("training " + timesTrained + " time(s)")
+
+      while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
         console.log("training " + timesTrained + " time(s)")
-
-        while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
-          console.log("training " + timesTrained + " time(s)")
-          textnnet.train(null, wordToGuess.current);
-          newGuess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-          timesTrained++;
-        }
-        console.log("updated NNet guess: " + newGuess)
-        guess = newGuess;
+        textnnet.train(null, wordToGuess.current);
+        newGuess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
+        timesTrained++;
       }
+      console.log("updated NNet guess: " + newGuess)
+      guess = newGuess;
+    }
 
-      
-      const guessLen = guessList.length;
-      setGuessList(prev => [...prev, guess.toUpperCase()]);
-      setGamesPlayed(gamesPlayed + 1);
-      
-      // if (wordToGuess.current === guess) {
-      //   console.log("WON");
-      //   setGuessList(prev => [...prev, guess.toUpperCase()]);
+    
+    const guessLen = guessList.length;
+    setGuessList(prev => [...prev, guess.toUpperCase()]);
+    setGamesPlayed(gamesPlayed + 1);
+    
+    // if (wordToGuess.current === guess) {
+    //   console.log("WON");
+    //   setGuessList(prev => [...prev, guess.toUpperCase()]);
 
-      // } else {
+    // } else {
+      
+    //   console.log("training with correct word: " + wordToGuess.current);
+    //   textnnet.train(null, wordToGuess.current);
+    //   if (guessLen + 1 === MAX_GUESSES) {
         
-      //   console.log("training with correct word: " + wordToGuess.current);
-      //   textnnet.train(null, wordToGuess.current);
-      //   if (guessLen + 1 === MAX_GUESSES) {
-          
-      //     setGamesPlayed(gamesPlayed + 1);
-      //     // setGameOver(true);
-      //     // setGameOver(false);
-      //     // setTimeout(() =>{
-      //     //   // window.dispatchEvent(new KeyboardEvent('keyup',{'key':'a'}));
-      //     //   // window.postMessage('start nnet');
-      //     // }, 10);
-      //   } else {
-      //     setGuessList(prev => [...prev, guess.toUpperCase()]);
-      //   }
-      // }
-    },
-    [wordToGuess, guessList, disabledLetters, inputWord, gamesPlayed, gamesWon, running],
-  );
-
-
-  useEffect(() => {
-    // if (Platform.OS === 'web') {
-      const callback = (event: MessageEvent) => {
-        if (event.data == 'start nnet') {
-          runNNet();
-        }
-        // const key = event.key;
-
-        // if (/^[A-Za-z]$/.test(key)) {
-        //   onKeyPress(key.toUpperCase());
-        // } else if (key === 'Enter' && inputWord.length === MAX_WORD_LEN) {
-        //   onKeyPress(SpecialKeyboardKeys.GUESS);
-        // } else if (key === 'Backspace') {
-        //   onKeyPress(SpecialKeyboardKeys.DELETE);
-        // }
-      };
-
-      window.onmessage = callback;
-      // window.addEventListener('keyup', callback);
-      // return () => window.removeEventListener('keyup', callback);
+    //     setGamesPlayed(gamesPlayed + 1);
+    //     // setGameOver(true);
+    //     // setGameOver(false);
+    //     // setTimeout(() =>{
+    //     //   // window.dispatchEvent(new KeyboardEvent('keyup',{'key':'a'}));
+    //     //   // window.postMessage('start nnet');
+    //     // }, 10);
+    //   } else {
+    //     setGuessList(prev => [...prev, guess.toUpperCase()]);
+    //   }
     // }
-  }, [inputWord.length, onKeyPress, runNNet]);
+  };
+
+
+  // useEffect(() => {
+  //   // if (Platform.OS === 'web') {
+  //     const callback = (event: MessageEvent) => {
+  //       if (event.data == 'start nnet') {
+  //         runNNet();
+  //       }
+  //       // const key = event.key;
+
+  //       // if (/^[A-Za-z]$/.test(key)) {
+  //       //   onKeyPress(key.toUpperCase());
+  //       // } else if (key === 'Enter' && inputWord.length === MAX_WORD_LEN) {
+  //       //   onKeyPress(SpecialKeyboardKeys.GUESS);
+  //       // } else if (key === 'Backspace') {
+  //       //   onKeyPress(SpecialKeyboardKeys.DELETE);
+  //       // }
+  //     };
+
+  //     // window.onmessage = callback;
+  //     // window.addEventListener('keyup', callback);
+  //     // return () => window.removeEventListener('keyup', callback);
+  //   // }
+  // }, [inputWord.length, onKeyPress, runNNet]);
   
   const wordleEmoji: string = useMemo(() => {
     if (!gameOver) {
@@ -237,17 +248,13 @@ const GameScreen = () => {
     <View style={styles.fg1}>
 
       <View style={styles.bottomContainer}>
-      {!running ? 
-        (<Button cta="Start NNet" onPress={() => { setRunning(true);} } />)
-        :
-        ( <Button cta="Stop NNet" onPress={() => { setRunning(false); } } />)
-      }
-      <Text style={styles.gamesplayed} selectable>
-        {"Games Played: " + gamesPlayed}
-      </Text>
-      <Text style={styles.gamesplayed} selectable>
-        {"Games Won: " + gamesWon}
-      </Text>
+        <Button cta={ !running ? "Start NNet" : "Stop NNet" } onPress={() => { setRunning(!running);} } />
+        <Text style={styles.gamesplayed} selectable>
+          {"Games Played: " + gamesPlayed}
+        </Text>
+        <Text style={styles.gamesplayed} selectable>
+          {"Games Won: " + gamesWon}
+        </Text>
       </View>
       {BOARD_TEMPLATE.map((row, rowIndex) => {
         return (
