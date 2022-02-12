@@ -3,11 +3,15 @@ import NNEt from "./nnet";
 
 // Work in progress, not usable...
 export default class TextNNet {
-    constructor(textInputs, nonTextInputs, outputChars) {
+    constructor(textInputs, nonTextInputs, outputChars, outputUpperCase) {
         // array of inputs
         this.nonTextInputs = nonTextInputs;
         this.textInputs = textInputs;
-        this.nnetInputs = []
+        this.nnetInputs = [];
+        this.outputUpperCase = outputUpperCase;
+        this.letterToNnInput = function(letter) {
+            return this.letterMap[letter.toLowerCase()];
+        };
         this.letterMap = {
             noletter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             a: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -36,36 +40,43 @@ export default class TextNNet {
             x: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
             y: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
             z: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-        };
-        this.indexToLetter = {
-            0: "a",
-            1: "b",
-            2: "c",
-            3: "d",
-            4: "e",
-            5: "f",
-            6: "g",
-            7: "h",
-            8: "i",
-            9: "j",
-            10: "k",
-            11: "l",
-            12: "m",
-            13: "n",
-            14: "o",
-            15: "p",
-            16: "q",
-            17: "r",
-            18: "s",
-            19: "t",
-            20: "u",
-            21: "v",
-            22: "w",
-            23: "x",
-            24: "y",
-            25: "z"
         }
-        this.letterToIndex = {
+        this.indexToLetter = function(index) {
+            let map = { 
+                0: "a",
+                1: "b",
+                2: "c",
+                3: "d",
+                4: "e",
+                5: "f",
+                6: "g",
+                7: "h",
+                8: "i",
+                9: "j",
+                10: "k",
+                11: "l",
+                12: "m",
+                13: "n",
+                14: "o",
+                15: "p",
+                16: "q",
+                17: "r",
+                18: "s",
+                19: "t",
+                20: "u",
+                21: "v",
+                22: "w",
+                23: "x",
+                24: "y",
+                25: "z"
+            };
+            return this.outputUpperCase ? map[index].toUpperCase() : map[index]; 
+        }
+        this.letterToIndex = function(letter) {
+            letter = letter.toLowerCase();
+            return this.letterToIndexMap[letter];
+        }
+        this.letterToIndexMap = {
             a: 0,
             b: 1,
             c: 2,
@@ -101,17 +112,15 @@ export default class TextNNet {
         for (let i = 0; i < nonTextInputs.length; i++) {
             this.nnetInputs.push(nonTextInputs[i]);
         }
-        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 3, outputChars * 26, null, true);
+        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 30, outputChars * 26, 0.8, true);
         
-        // ti = text inputs
         // nti = non text inputs
         this.fire = function(ti, nti) {
-
             let input = [];
             for (let i = 0; i < ti.length; i++) {
                 for (let ii = 0; ii < ti[i].length; ii++) 
                 {
-                    input.push(this.letterMap[ti[i][ii].toLowerCase()]);
+                    input.push(this.letterToNnInput(ti[i][ii]));
                 }
             }
             input = input.concat(nti);
@@ -123,23 +132,24 @@ export default class TextNNet {
             rawResult.forEach(result => {
                 if (result > highestProbability) {
                     highestProbability = result;
-                    currentBestGuessOfLetter = this.indexToLetter[i];
+                    currentBestGuessOfLetter = this.indexToLetter(i);
                 }
                 if (i == 25) {
                     i = 0;
                     textResult = textResult + currentBestGuessOfLetter;
+                    highestProbability = 0;
                 } else {
                     i++;
                 }
             });
-            return textResult;
+            return this.outputUpperCase ? textResult.toUpperCase() : textResult;
         }
 
         this.train = function(inputs = null, expectedOutput) {
             expectedOutput = expectedOutput.toLowerCase();
             let parsedExpectedOutput = [];
             for (let i = 0; i < expectedOutput.length; i++) {
-                parsedExpectedOutput.push(this.letterMap[expectedOutput[i]]);
+                parsedExpectedOutput.push(...this.letterMap[expectedOutput[i]]);
             }
             this.nnet.train(inputs, parsedExpectedOutput);
         }
