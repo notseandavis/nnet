@@ -112,7 +112,7 @@ export default class TextNNet {
         for (let i = 0; i < nonTextInputs.length; i++) {
             this.nnetInputs.push(nonTextInputs[i]);
         }
-        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 30, outputChars * 26, 0.8, true);
+        this.nnet = new NNEt(this.nnetInputs, this.textInputs.length + this.nonTextInputs.length, 30, outputChars * 26, 0.5, true);
         
         // nti = non text inputs
         this.fire = function(ti, nti) {
