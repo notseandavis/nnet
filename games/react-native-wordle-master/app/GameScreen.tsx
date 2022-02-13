@@ -8,17 +8,22 @@ import {getInitialBoard, getRandomWord, getWordleEmoji} from './gameUtils';
 import TextNNet from '../../../neuralnet/textnnet';
 
 const BOARD_TEMPLATE = getInitialBoard();
-const textnnet = new TextNNet([[5]], [[26], [26]], 5, true);
+const textnnet = new TextNNet([[5]], [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]], 5, true);
 
 const GameScreen = () => {
   const [guessList, setGuessList] = useState<string[]>([]);
   const [inputWord, setInputWord] = useState<string>('');
+  const [firstGuess, setFirstGuess] = useState<string>('');
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [nNetGuessing, setNNetGuessing] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
   const [trainingMode, setTrainingMode] = useState<boolean>(true);
   const [gamesPlayed, setGamesPlayed] = useState<number>(0);
   const [turnsPlayed, setTurnsPlayed] = useState<number>(0);
+  const [originalWeights, setOriginalWeights] = useState<object>({});
+  const [trainingList, setTrainingList] = useState<(number[] | string[][])[][]>([]);
+
+
   
   const [gamesWon, setGamesWon] = useState<number>(0);
   const [disabledLetters, setDisabledLetters] = useState<string[]>([]);
@@ -30,7 +35,6 @@ const GameScreen = () => {
       wordToGuess.current = getRandomWord();
       setInputWord('');
       setGuessList([]);
-      // window.postMessage('start nnet');
       setGamesPlayed(gamesPlayed + 1);
     }
     if (running) {
@@ -48,10 +52,21 @@ const GameScreen = () => {
     const guessLen = guessList.length;
     setTurnsPlayed(turnsPlayed + 1);
     if (guessList[guessLen - 1] === wordToGuess.current) {
+      // trainingList.forEach((input) => {
+      //   textnnet.train(input[0], input[1], wordToGuess.current);
+      // });
+      textnnet.train(null, null, wordToGuess.current);
+
+      setTrainingList([]);
       setGameOver(true);
       setGamesWon(gamesWon + 1);
 
     } else if (guessLen === MAX_GUESSES) {
+      // trainingList.forEach((input) => {
+      //   textnnet.train(input[0], input[1], wordToGuess.current);
+      // });
+      textnnet.train(null, null, wordToGuess.current);
+      setTrainingList([]);
       setGameOver(true);
 
     } else {
@@ -133,10 +148,16 @@ const GameScreen = () => {
         }
       }
     });
-
-    let guess: string = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-    let originalGuess = guess;
-
+    let input =  [[correctLettersInput], [...disabledLettersInput, ...presentLettersInput]];
+    let guess: string = textnnet.fire(input[0], input[1]);
+    // if (guessList.length === 0) {
+    //   console.log("first guess: " + guess);
+    // }
+    // if (guessList.length === 5) {
+    //   console.log("last guess: " + guess);
+    // }
+    setTrainingList(prev => [...prev, input]);
+    
     console.log("NNet guess: " + guess + "")
     for (let guessedLetter = 0; guessedLetter < 5; guessedLetter++) {
 
@@ -144,7 +165,7 @@ const GameScreen = () => {
       // let letterToCheck =  ;
       while (disabledLetters.includes(guess[guessedLetter])) {
 
-      console.log("original guess contains disabled letter, modifying for training use...")
+      // console.log("original guess contains disabled letter, modifying for training use...")
         let randomNumber = randomInteger(1, 25);
         let randomLetter = textnnet.indexToLetter(randomNumber);
         while (disabledLetters.includes(randomLetter)) {
@@ -153,27 +174,30 @@ const GameScreen = () => {
         }
         guess = guess.replace(letterToCheck, randomLetter);
 
-        console.log("training guess changed to: " + guess + "")
+        // console.log("training guess changed to: " + guess + "")
       }
     }
+    // if (guess != originalGuess) {
+    //   let weightsBeforeTraining = textnnet.getWeights();
+    //   let newGuess = guess;
+    //   let timesTrained = 1;
+    //   textnnet.train(null, newGuess);
+    //   guess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
+    //   timesTrained++;
+    //   console.log("training " + timesTrained + " time(s)")
 
-    if (guess != originalGuess) {
-      let newGuess = guess;
-      let timesTrained = 1;
-      textnnet.train(null, trainingMode ? wordToGuess.current : newGuess);
-      guess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-      timesTrained++;
-      console.log("training " + timesTrained + " time(s)")
-
-      while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
-        console.log("training " + timesTrained + " time(s)")
-        textnnet.train(null, trainingMode ? wordToGuess.current : newGuess);
-        newGuess = textnnet.fire([correctLettersInput], [disabledLettersInput, presentLettersInput]);
-        timesTrained++;
-      }
-      console.log("updated NNet guess: " + newGuess)
-      guess = newGuess;
-    }
+    //   while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
+    //     console.log("training " + timesTrained + " time(s)")
+    //     textnnet.train(null, newGuess);
+    //     newGuess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
+    //     timesTrained++;
+    //   }
+    //   console.log("updated NNet guess: " + newGuess)
+    //   guess = newGuess;
+    //   textnnet.setWeights(weightsBeforeTraining);
+    // }
+    // set the weights to the original, and train it on the correct answer
+    // textnnet.train(null, wordToGuess.current);
 
     setGuessList(prev => [...prev, guess.toUpperCase()]);
   };

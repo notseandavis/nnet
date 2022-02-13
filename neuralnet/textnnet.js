@@ -12,6 +12,12 @@ export default class TextNNet {
         this.letterToNnInput = function(letter) {
             return this.letterMap[letter.toLowerCase()];
         };
+        this.getWeights = function() {
+            return this.nnet.getWeights();
+        };
+        this.setWeights = function(weights) {
+            this.nnet.setWeights(weights);
+        }
         this.letterMap = {
             noletter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             a: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -106,13 +112,17 @@ export default class TextNNet {
         }
         for (let i = 0; i < textInputs.length; i++) {
             for (let ii = 0; ii < textInputs[i]; ii++) {
-                this.nnetInputs.push([26]);
+
+                for (let iii = 0; iii < 26; iii++) {
+                    this.nnetInputs.push([1]);
+                }
+                // this.nnetInputs.push([26]);
             }
         }
         for (let i = 0; i < nonTextInputs.length; i++) {
             this.nnetInputs.push(nonTextInputs[i]);
         }
-        this.nnet = new NNEt(this.nnetInputs, this.textInputs.length + this.nonTextInputs.length, 30, outputChars * 26, 0.5, true);
+        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 4, outputChars * 26, .000000001, false);
         
         // nti = non text inputs
         this.fire = function(ti, nti) {
@@ -120,7 +130,7 @@ export default class TextNNet {
             for (let i = 0; i < ti.length; i++) {
                 for (let ii = 0; ii < ti[i].length; ii++) 
                 {
-                    input.push(this.letterToNnInput(ti[i][ii]));
+                    input.push(...this.letterToNnInput(ti[i][ii]));
                 }
             }
             input = input.concat(nti);
@@ -145,13 +155,26 @@ export default class TextNNet {
             return this.outputUpperCase ? textResult.toUpperCase() : textResult;
         }
 
-        this.train = function(inputs = null, expectedOutput) {
+        this.train = function(ti = null, nti = null, expectedOutput) {
+            let input = null;
+            if (ti != null && nti != null) {
+                input = [];
+                for (let i = 0; i < ti.length; i++) {
+                    for (let ii = 0; ii < ti[i].length; ii++) 
+                    {
+                        input.push(...this.letterToNnInput(ti[i][ii]));
+                    }
+                }
+                input = input.concat(nti);
+            }
+
+            console.log("training with expected output: " + expectedOutput)
             expectedOutput = expectedOutput.toLowerCase();
             let parsedExpectedOutput = [];
             for (let i = 0; i < expectedOutput.length; i++) {
                 parsedExpectedOutput.push(...this.letterMap[expectedOutput[i]]);
             }
-            this.nnet.train(inputs, parsedExpectedOutput);
+            this.nnet.train(input, parsedExpectedOutput);
         }
 
     }
