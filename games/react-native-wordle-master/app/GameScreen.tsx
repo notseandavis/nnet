@@ -52,20 +52,20 @@ const GameScreen = () => {
     const guessLen = guessList.length;
     setTurnsPlayed(turnsPlayed + 1);
     if (guessList[guessLen - 1] === wordToGuess.current) {
-      // trainingList.forEach((input) => {
-      //   textnnet.train(input[0], input[1], wordToGuess.current);
-      // });
-      textnnet.train(null, null, wordToGuess.current);
+      if (trainingMode) {
+        trainingList.forEach((input) => {
+          textnnet.train(input[0], input[1], wordToGuess.current);
+        });
+      }
 
       setTrainingList([]);
       setGameOver(true);
       setGamesWon(gamesWon + 1);
 
     } else if (guessLen === MAX_GUESSES) {
-      // trainingList.forEach((input) => {
-      //   textnnet.train(input[0], input[1], wordToGuess.current);
-      // });
-      textnnet.train(null, null, wordToGuess.current);
+      if (trainingMode) {
+        textnnet.train(null, null, wordToGuess.current);
+      }
       setTrainingList([]);
       setGameOver(true);
 
@@ -134,14 +134,14 @@ const GameScreen = () => {
     for (let i = 0; i < 5; i++) {
       correctLettersInput.push("noletter");
     }
-    let presentLetters = "";
+    let presentLetters:string[] = [];
     guessList.forEach((guess: string) => {
       for (let ii = 0; ii < guess.length; ii++) {
         const thisLetterindex = textnnet.letterToIndex(guess[ii]);
 
         if (wordToGuess.current.includes(guess[ii])) {
           presentLettersInput[thisLetterindex] = 1;
-          presentLetters = presentLetters + guess[ii];
+          presentLetters.push(guess[ii]);
           if (guess[ii] === wordToGuess.current[ii]) {
             correctLettersInput[ii] = guess[ii];
           }
@@ -149,7 +149,8 @@ const GameScreen = () => {
       }
     });
     let input =  [[correctLettersInput], [...disabledLettersInput, ...presentLettersInput]];
-    let guess: string = textnnet.fire(input[0], input[1]);
+    let guess: string[] = textnnet.fire(input[0], input[1]).split("");
+    let guessChanged = false;
     // if (guessList.length === 0) {
     //   console.log("first guess: " + guess);
     // }
@@ -159,47 +160,57 @@ const GameScreen = () => {
     setTrainingList(prev => [...prev, input]);
     
     console.log("NNet guess: " + guess + "")
-    for (let guessedLetter = 0; guessedLetter < 5; guessedLetter++) {
 
-      let letterToCheck =  guess[guessedLetter];
-      // let letterToCheck =  ;
-      while (disabledLetters.includes(guess[guessedLetter])) {
-
-      // console.log("original guess contains disabled letter, modifying for training use...")
+    for (let guesedLetterIndex = 0; guesedLetterIndex < 5; guesedLetterIndex++) {
+      // Check if this letter is disabled
+      // If it is, replace it with a random letter
+      let letterIsDisabled = false;
+      while (disabledLetters.includes(guess[guesedLetterIndex])) {
         let randomNumber = randomInteger(1, 25);
         let randomLetter = textnnet.indexToLetter(randomNumber);
         while (disabledLetters.includes(randomLetter)) {
           randomNumber = randomInteger(1, 25);
           randomLetter = textnnet.indexToLetter(randomNumber);
         }
-        guess = guess.replace(letterToCheck, randomLetter);
-
-        // console.log("training guess changed to: " + guess + "")
+        guess[guesedLetterIndex] = randomLetter;
+        letterIsDisabled = true;
+        guessChanged = true;
       }
+
+      let letterIsCorrect = false; 
+
+      // Make sure correct letters are in the correct place
+      // if (trainingMode) {
+      //   if (correctLettersInput[guesedLetterIndex] !== 'noletter') {
+      //     guess[guesedLetterIndex] = correctLettersInput[guesedLetterIndex];
+      //     letterIsCorrect = true;
+      //     guessChanged = true;
+      //   }
+      // }
+
     }
-    // if (guess != originalGuess) {
-    //   let weightsBeforeTraining = textnnet.getWeights();
-    //   let newGuess = guess;
-    //   let timesTrained = 1;
-    //   textnnet.train(null, newGuess);
-    //   guess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
-    //   timesTrained++;
-    //   console.log("training " + timesTrained + " time(s)")
 
-    //   while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
-    //     console.log("training " + timesTrained + " time(s)")
-    //     textnnet.train(null, newGuess);
-    //     newGuess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
-    //     timesTrained++;
-    //   }
-    //   console.log("updated NNet guess: " + newGuess)
-    //   guess = newGuess;
-    //   textnnet.setWeights(weightsBeforeTraining);
-    // }
-    // set the weights to the original, and train it on the correct answer
-    // textnnet.train(null, wordToGuess.current);
+    if (!trainingMode && guessChanged) {
+      let weightsBeforeTraining = textnnet.getWeights();
+      let newGuess = guess;
+      let timesTrained = 1;
+      textnnet.train(null, null, newGuess.join(""));
+      guess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
+      timesTrained++;
+      console.log("training " + timesTrained + " time(s)")
 
-    setGuessList(prev => [...prev, guess.toUpperCase()]);
+      while (disabledLetters.includes(newGuess[0]) || disabledLetters.includes(newGuess[1]) || disabledLetters.includes(newGuess[2]) || disabledLetters.includes(newGuess[3]) || disabledLetters.includes(newGuess[4]) || disabledLetters.includes(newGuess[5])) {
+        console.log("training " + timesTrained + " time(s)")
+        textnnet.train(null, null, newGuess.join(""));
+        newGuess = textnnet.fire([correctLettersInput], [...disabledLettersInput, ...presentLettersInput]);
+        timesTrained++;
+      }
+      console.log("updated NNet guess: " + newGuess)
+      guess = newGuess;
+      textnnet.setWeights(weightsBeforeTraining);
+    }
+
+    setGuessList(prev => [...prev, guess.join("")]);
   };
 
 
@@ -244,6 +255,9 @@ const GameScreen = () => {
       </Text>
       <Text style={styles.gamesplayed} selectable>
         {"Games Won: " + gamesWon}
+      </Text>
+      <Text style={styles.gamesplayed} selectable>
+        {"Win Ratio: " + (Math.floor((gamesWon / gamesPlayed )* 100) / 100 ).toFixed(4)}
       </Text>
       </View>
       {BOARD_TEMPLATE.map((row, rowIndex) => {
@@ -394,4 +408,8 @@ export default GameScreen;
 
 function randomInteger(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function roundDown(n, d) {
+  d = d || 0;
+  return ( Math.floor( n * Math.pow(10, n) ) / Math.pow(10, n) );
 }
