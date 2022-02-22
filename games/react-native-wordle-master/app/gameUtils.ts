@@ -10,10 +10,13 @@ export const getInitialBoard = (): string[][] => {
   return board;
 };
 
-export const getRandomWord = (): string => {
+export const getRandomWord = (): { word: string, index: number } => {
   const len = fiveLetterWords.length;
   const randomIndex = Math.floor(Math.random() * 100000) % len;
-  return fiveLetterWords[randomIndex].toUpperCase();
+  return {
+    word: fiveLetterWords[randomIndex].toUpperCase(),
+    index: randomIndex
+  };
 };
 
 export const getWordleEmoji = (word: string, guessList: string[]): string => {

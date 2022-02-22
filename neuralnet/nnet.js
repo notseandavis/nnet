@@ -189,7 +189,7 @@ class Node {
 }
 
 function startingWeight(random) {
-    return random ? Math.random() : 0;
+    return random ? Math.random() : 0.01;
 }
 function sigmoid(x) {
     return 1 / (1 + Math.exp(-x));
