@@ -63,9 +63,11 @@ const GameScreen = () => {
     const guessLen = guessList.length;
     if (guessList[guessLen - 1] === wordToGuess.current) {
       if (trainingMode) {
-        trainingList.forEach((trainingData => {
-          textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-        }))
+        // trainingList.forEach((trainingData => {
+        //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
+        // }))
+        textnnet.train(null, null, null, expectedResult);
+
       }
       if (nnGuess === wordToGuess.current) {
         setGamesWon(gamesWon + 1);
@@ -93,27 +95,17 @@ const GameScreen = () => {
       });
   
       setDisabledLetters(list);
-      setTurnsPlayed(turnsPlayed + 1);
     }
     
     const list: string[] = [];
 
-  }, [guessList]);
+  }, [guessList])
 
-  // useEffect(() => {
-  //   const list: string[] = [];
 
-  //   guessList.forEach(word => {
-  //     word.split('').forEach(letter => {
-  //       // console.log({letter});
-  //       if (!wordToGuess.current.includes(letter)) {
-  //         list.push(letter);
-  //       }
-  //     });
-  //   });
-
-  //   setDisabledLetters(list);
-  // }, [guessList]);
+  useEffect(() => {
+    // fire the next turn when disabled letters are reset
+    setTurnsPlayed(turnsPlayed + 1);
+  }, [disabledLetters])
 
   useEffect(() => {
     window.postMessage('start nnet');
@@ -132,7 +124,6 @@ const GameScreen = () => {
           if (prev.length < MAX_WORD_LEN && !disabledLetters.includes(key)) {
             return prev + key;
           }
-
           return prev;
         });
       }
@@ -152,20 +143,20 @@ const GameScreen = () => {
     console.log("running...")
     let disabledLettersInput = new Array<number[]>();
     for (let i = 0; i < 26; i++) {
-      disabledLettersInput.push([0.4]);
+      disabledLettersInput.push([0]);
     }
 
     for (let i = 0; i < dl.length; i++) {
       let disabledLetter = dl[i];
       let disabledLetterIndex = textnnet.letterToIndex(disabledLetter);
-      disabledLettersInput[disabledLetterIndex] = [0.6];
+      disabledLettersInput[disabledLetterIndex] = [1];
     }
 
     let presentLettersInput = new Array<number[]>();
     let correctLettersInput = new Array<string>();
 
     for (let i = 0; i < 26; i++) {
-      presentLettersInput.push([0.4]);
+      presentLettersInput.push([0]);
     }
     for (let i = 0; i < 5; i++) {
       correctLettersInput.push("noletter");
@@ -176,7 +167,7 @@ const GameScreen = () => {
         const thisLetterindex = textnnet.letterToIndex(guess[ii]);
 
         if (correctWord.includes(guess[ii])) {
-          presentLettersInput[thisLetterindex] = [0.6];
+          presentLettersInput[thisLetterindex] = [1];
           presentLetters.push([guess[ii]]);
           if (guess[ii] === correctWord[ii]) {
             correctLettersInput[ii] = guess[ii];
@@ -227,7 +218,7 @@ const GameScreen = () => {
       turnPlayedByAi = false;
     }
     if (turnPlayedByAi) {
-      setTurnsPlayed(turnsPlayedByAi + 1);
+      setTurnsPlayedByAi(turnsPlayedByAi + 1);
     }
     setNnGuess(neuralNetworkBestGuess + uncertain + invalid) // + (uncertain ==? " (Uncertain) " | "") + (invalid ? " (Invalid)" | ""))
     let trainingLoop = (wordlList: string[]) => {
@@ -249,7 +240,7 @@ const GameScreen = () => {
           wordlList.splice(randomWordIndex, 1);
           setRandomGuess(guess.join(""));
           trainingLoop(wordlList);
-        }, 10, [wordlList]);
+        }, 1, [wordlList]);
       } else {
         setNnStatus("Playing...");
         setGuessList(prev => [...prev, guess.join("")]);
@@ -258,17 +249,13 @@ const GameScreen = () => {
     trainingLoop([...flw]);
   };
 
+  const callback = (event: MessageEvent) => {
+    if (event.data == 'start nnet') {
+      runNNet(wordToGuess.current, guessList, disabledLetters, fiveLetterWords);
+    }
+  };
 
-  useEffect(() => {
-    // if (Platform.OS === 'web') {
-      const callback = (event: MessageEvent) => {
-        if (event.data == 'start nnet') {
-          runNNet(wordToGuess.current, guessList, disabledLetters, fiveLetterWords);
-        }
-      };
-
-      window.onmessage = callback;
-  }, [inputWord.length, onKeyPress]);
+  window.onmessage = callback;
   
   const wordleEmoji: string = useMemo(() => {
     if (!gameOver) {
@@ -490,7 +477,7 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
 function getExpectedOutput(numberOfOptions: number, activeResultIndex: number) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 0.6 : 0.4);
+    expectedResult.push(activeResultIndex === i ? 1 : 0);
   }
   return expectedResult;
 }
