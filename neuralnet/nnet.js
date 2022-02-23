@@ -189,10 +189,10 @@ class Node {
 }
 
 function startingWeight(random) {
-    return random ? Math.random() : 0.01;
+    return random ? Math.random() : 0.0;
 }
 function sigmoid(x) {
-    return 1 / (1 + Math.exp(2/-x));
+    return 1 / (1 + Math.exp(-x));
 } 
 function sigmoidDerivative(x, learningRate) {
     const fx = sigmoid(x);
