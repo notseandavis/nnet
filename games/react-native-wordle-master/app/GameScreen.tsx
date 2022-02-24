@@ -65,7 +65,7 @@ const GameScreen = () => {
       if (trainingMode) {
         trainingList.forEach((trainingData => {
           textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-        }))
+        }));
         textnnet.train(null, null, null, expectedResult);
 
       }
@@ -135,10 +135,7 @@ const GameScreen = () => {
     if (!running) {
       return;
     }
-    // if (!turnDoneUpdating) {
-    //   console.log("waiting for update to complete")
-    //   setTimeout(runNNet, 10, [cw, gl, dl]);
-    // }
+
     let correctWord = cw.split("");
     console.log("running...")
     let disabledLettersInput = new Array<number[]>();
@@ -194,26 +191,13 @@ const GameScreen = () => {
     let uncertain = "";
     if (rawGuess.certainty < 0.1) {
       uncertain = " (Uncertain)";      
-      // let randomIndex = randomInteger(0, flw.length - 1);
-      // guess = flw[randomIndex].toUpperCase().split("");
-      // setRandomGuess(guess.join(""));
-      // turnPlayedByAi = false;
-
-      
     } 
-    // else {
       guess = neuralNetworkBestGuess.split("");
       setNnGuess(guess.join(""));
       setRandomGuess("")
     // }
     let invalid = "";
-    if (
-      dl.includes(neuralNetworkBestGuess[0]) || 
-      dl.includes(neuralNetworkBestGuess[1]) || 
-      dl.includes(neuralNetworkBestGuess[2]) || 
-      dl.includes(neuralNetworkBestGuess[3]) || 
-      dl.includes(neuralNetworkBestGuess[4])
-    ) {
+    if (includesDisabledLetter(dl, guess)) {
       invalid = " (Invalid)";
       turnPlayedByAi = false;
     }
@@ -223,7 +207,7 @@ const GameScreen = () => {
     setNnGuess(neuralNetworkBestGuess + uncertain + invalid) // + (uncertain ==? " (Uncertain) " | "") + (invalid ? " (Invalid)" | ""))
     
     
-    if (includesDisabledLetter(dl, guess)) {
+    if (!turnPlayedByAi) {
       let randomWordIndex = randomInteger(0, flw.length - 1);
       let newRandomWord = flw[randomWordIndex].toUpperCase().split("");
       while (includesDisabledLetter(dl, newRandomWord)) {
@@ -235,10 +219,10 @@ const GameScreen = () => {
       textnnet.train(null, null, null, aDifferentResult);
       let anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
       let anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
-      // setCertainty(rawGuess.certainty);
+
       guess = flw[anotherRawGuess.index].toUpperCase().split("");
       setRandomGuess(guess.join(""));
-
+      let timesTrained = 0;
       while (includesDisabledLetter(dl, guess)) {
         aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
         textnnet.train(null, null, null, aDifferentResult);
@@ -246,7 +230,8 @@ const GameScreen = () => {
         anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
         // setCertainty(rawGuess.certainty);
         guess = flw[anotherRawGuess.index].toUpperCase().split("");
-        setRandomGuess(guess.join(""));
+        timesTrained++;
+        setRandomGuess(guess.join("") + (" (Training AI x " + timesTrained + ")"));
       }
 
       

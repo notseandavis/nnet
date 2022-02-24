@@ -130,7 +130,7 @@ export default class TextNNet {
         if (nonTextOutputs && nonTextOutputs > 0) {
             totalOutputs = totalOutputs + nonTextOutputs;
         }
-        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 1, totalOutputs, 1, false);
+        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, 1, totalOutputs, .05, false);
         
         // nti = non text inputs
         this.fire = function(ti, nti) {

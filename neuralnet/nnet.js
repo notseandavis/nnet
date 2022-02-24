@@ -196,7 +196,7 @@ function sigmoid(x) {
 } 
 function sigmoidDerivative(x, learningRate) {
     const fx = sigmoid(x);
-    return fx * (0.5 + learningRate - fx);
+    return fx * (1 + learningRate - fx);
 }
 
 function activation(inputs, weights, bias) {
