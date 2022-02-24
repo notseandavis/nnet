@@ -63,9 +63,9 @@ const GameScreen = () => {
     const guessLen = guessList.length;
     if (guessList[guessLen - 1] === wordToGuess.current) {
       if (trainingMode) {
-        // trainingList.forEach((trainingData => {
-        //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-        // }))
+        trainingList.forEach((trainingData => {
+          textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
+        }))
         textnnet.train(null, null, null, expectedResult);
 
       }
@@ -221,32 +221,83 @@ const GameScreen = () => {
       setTurnsPlayedByAi(turnsPlayedByAi + 1);
     }
     setNnGuess(neuralNetworkBestGuess + uncertain + invalid) // + (uncertain ==? " (Uncertain) " | "") + (invalid ? " (Invalid)" | ""))
-    let trainingLoop = (wordlList: string[]) => {
-      if (
-        dl.includes(guess[0]) || 
-        dl.includes(guess[1]) || 
-        dl.includes(guess[2]) || 
-        dl.includes(guess[3]) || 
-        dl.includes(guess[4])
-      ) {
-        // If its the first loop we know the NN guessed an invalid option
-
-
-        setTimeout(() => {
-          timesTrained++;
-          setRandomGuesses(timesTrained);
-          let randomWordIndex = randomInteger(0, wordlList.length - 1);
-          guess = wordlList[randomWordIndex].toUpperCase().split("");
-          wordlList.splice(randomWordIndex, 1);
-          setRandomGuess(guess.join(""));
-          trainingLoop(wordlList);
-        }, 1, [wordlList]);
-      } else {
-        setNnStatus("Playing...");
-        setGuessList(prev => [...prev, guess.join("")]);
+    
+    
+    if (includesDisabledLetter(dl, guess)) {
+      let randomWordIndex = randomInteger(0, flw.length - 1);
+      let newRandomWord = flw[randomWordIndex].toUpperCase().split("");
+      while (includesDisabledLetter(dl, newRandomWord)) {
+        randomWordIndex = randomInteger(0, flw.length - 1);
+        newRandomWord = flw[randomWordIndex].toUpperCase().split("");
       }
+
+      let aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
+      textnnet.train(null, null, null, aDifferentResult);
+      let anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
+      let anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
+      // setCertainty(rawGuess.certainty);
+      guess = flw[anotherRawGuess.index].toUpperCase().split("");
+      setRandomGuess(guess.join(""));
+
+      while (includesDisabledLetter(dl, guess)) {
+        aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
+        textnnet.train(null, null, null, aDifferentResult);
+        anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
+        anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
+        // setCertainty(rawGuess.certainty);
+        guess = flw[anotherRawGuess.index].toUpperCase().split("");
+        setRandomGuess(guess.join(""));
+      }
+
+      
+      // wordlList.splice(randomWordIndex, 1);
     }
-    trainingLoop([...flw]);
+    setGuessList(prev => [...prev, guess.join("")]);
+    
+    
+    
+    
+    // let trainingLoop = (wordlList: string[]) => {
+    //   if (
+    //     dl.includes(guess[0]) || 
+    //     dl.includes(guess[1]) || 
+    //     dl.includes(guess[2]) || 
+    //     dl.includes(guess[3]) || 
+    //     dl.includes(guess[4])
+    //   ) {
+    //     // If its the first loop we know the NN guessed an invalid option
+
+
+    //     setTimeout(() => {
+    //       timesTrained++;
+    //       setRandomGuesses(timesTrained);
+    //       let randomWordIndex = randomInteger(0, wordlList.length - 1);
+    //       let newRandomWord = wordlList[randomWordIndex].toUpperCase().split("");
+
+    //       while (dl.includes(newRandomWord[0]) || 
+    //       dl.includes(newRandomWord[1]) || 
+    //       dl.includes(newRandomWord[2]) || 
+    //       dl.includes(newRandomWord[3]) || 
+    //       dl.includes(newRandomWord[4])) {
+    //         newRandomWord = wordlList[randomInteger(0, wordlList.length - 1)].toUpperCase().split("");
+    //       }
+
+    //       let aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
+    //       textnnet.train(null, null, null, aDifferentResult);
+    //       let anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
+    //       let anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
+    //       // setCertainty(rawGuess.certainty);
+    //       guess = flw[anotherRawGuess.index].toUpperCase().split("");
+    //       // wordlList.splice(randomWordIndex, 1);
+    //       setRandomGuess(guess.join(""));
+    //       trainingLoop(wordlList);
+    //     }, 1, [wordlList]);
+    //   } else {
+    //     setNnStatus("Playing...");
+    //     setGuessList(prev => [...prev, guess.join("")]);
+    //   }
+    // }
+    // trainingLoop([...flw]);
   };
 
   const callback = (event: MessageEvent) => {
@@ -307,13 +358,16 @@ const GameScreen = () => {
         {"Valid plays by AI: " + turnsPlayedByAi}
       </Text>
       <Text style={styles.gamesplayed} selectable>
+        {"Valid play ratio: " + (turnsPlayedByAi / turnsPlayed).toFixed(5)}
+      </Text>
+      <Text style={styles.gamesplayed} selectable>
         {"Games Played: " + gamesPlayed}
       </Text>
       <Text style={styles.gamesplayed} selectable>
         {"Games Won: " + gamesWon}
       </Text>
       <Text style={styles.gamesplayed} selectable>
-        {"Win Ratio: " + (Math.floor((gamesWon / gamesPlayed )* 100) / 100 ).toFixed(4)}
+        {"Win Ratio: " + (Math.floor((gamesWon / gamesPlayed )* 100) / 100 ).toFixed(5)}
       </Text>
       </View>
       {BOARD_TEMPLATE.map((row, rowIndex) => {
@@ -484,4 +538,14 @@ function getExpectedOutput(numberOfOptions: number, activeResultIndex: number) {
 
 function randomInteger(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function includesDisabledLetter(disabledLetters: string[], word: string[]) {
+  return (
+    disabledLetters.includes(word[0]) || 
+    disabledLetters.includes(word[1]) || 
+    disabledLetters.includes(word[2]) || 
+    disabledLetters.includes(word[3]) || 
+    disabledLetters.includes(word[4])
+  );
 }
