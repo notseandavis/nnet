@@ -34,6 +34,7 @@ const GameScreen = () => {
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
   const [turnsPlayed, setTurnsPlayed] = useState<number>(0);
   const [turnsPlayedByAi, setTurnsPlayedByAi] = useState<number>(0);
+  const [nnetError, setnnetError] = useState<number>(0);
   const [originalWeights, setOriginalWeights] = useState<object>({});
   const [trainingList, setTrainingList] = useState<(number[][] | string[][])[]>([]);
 
@@ -67,10 +68,8 @@ const GameScreen = () => {
           textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
         }));
         textnnet.train(null, null, null, expectedResult);
+        setnnetError(textnnet.nnet.globalError);
 
-      }
-      if (nnGuess === wordToGuess.current) {
-        setGamesWon(gamesWon + 1);
       }
 
       setTrainingList([]);
@@ -192,16 +191,19 @@ const GameScreen = () => {
     if (rawGuess.certainty < 0.1) {
       uncertain = " (Uncertain)";      
     } 
-      guess = neuralNetworkBestGuess.split("");
-      setNnGuess(guess.join(""));
-      setRandomGuess("")
-    // }
+    if (neuralNetworkBestGuess === wordToGuess.current) {
+      setGamesWon(gamesWon + 1);
+    }
+    guess = neuralNetworkBestGuess.split("");
+    setNnGuess(guess.join(""));
+    setRandomGuess("")
+
     let invalid = "";
     if (includesDisabledLetter(dl, guess)) {
       invalid = " (Invalid)";
       turnPlayedByAi = false;
     }
-    if (turnPlayedByAi) {
+    if (turnPlayedByAi && guessList.length > 1) {
       setTurnsPlayedByAi(turnsPlayedByAi + 1);
     }
     setNnGuess(neuralNetworkBestGuess + uncertain + invalid) // + (uncertain ==? " (Uncertain) " | "") + (invalid ? " (Invalid)" | ""))
@@ -353,6 +355,9 @@ const GameScreen = () => {
       </Text>
       <Text style={styles.gamesplayed} selectable>
         {"Win Ratio: " + (Math.floor((gamesWon / gamesPlayed )* 100) / 100 ).toFixed(5)}
+      </Text>
+      <Text style={styles.gamesplayed} selectable>
+        {"Total Error: " + (Math.floor(nnetError).toFixed(5))}
       </Text>
       </View>
       {BOARD_TEMPLATE.map((row, rowIndex) => {

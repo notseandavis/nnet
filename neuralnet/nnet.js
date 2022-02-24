@@ -24,6 +24,8 @@ export default class NNEt {
         // Here is our array of layers
         this.layers = [];
 
+        this.globalError = 0;
+
         // Layer Index
         let i = 0;
         
@@ -88,6 +90,7 @@ export default class NNEt {
     // TODO: Clean this up
     // Train the network using inputs (or last inputs if not previously provided) and expected outputs
     train(inputs, expectedOutputs) {
+        let error = 0;
         // console.log("training nnet")
         if (!inputs) {
             inputs = this.lastInputs;
@@ -105,20 +108,21 @@ export default class NNEt {
                 let thisLayersInput = i === 0 ? inputs[ii] : allOutputs[i - 1];
                 
                 // Delta for this node
-                let nodeDelta;
+                let nodeDelta = 0;
                 if (i === this.layers.length - 1) {
                     // this is the output layer, so we use the expected output for this node
                     let outputDelta = (expectedOutputs[ii] - allOutputs[i][[ii]])
                     nodeDelta = outputDelta;
                 } else {
-                    // this is some middle or output layer, add up the previous layers together as they all connect together
-                    nodeDelta = 0;
+                    // this is some middle or input layer, add up the previous layers together as they all connect together
                     previousLayersDeltas[i + 1].forEach(delta => { nodeDelta += delta; });
                 }
                 let nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
                 previousLayersDeltas[i].push(nextLayersDelta)
+                error += nextLayersDelta;
             }
         }
+        this.globalError = error;
     }
 
     activateAllLayers(inputs) {
@@ -176,7 +180,7 @@ class Node {
         for (let i = 0; i < inputs.length; i++) {
             this.weights[i] += inputs[i] * delta;
         }
-        this.bias += delta;
+        this.bias = this.bias + learningRate * delta;
         return delta;
     }
     fire(inputs) {
@@ -184,15 +188,20 @@ class Node {
             throw new Error("too many inputs");
         }
         let sum = activation(inputs, this.weights, this.bias)
-        return sigmoid(sum)
+        let output = sigmoid(sum);
+        if (output === 0 || output === 1) {
+            throw Error("output out of bounds!!!")
+        }
+        return output;
     }
 }
 
 function startingWeight(random) {
-    return random ? Math.random() : 0.0;
+    return random ? Math.random() : 0.1;
 }
 function sigmoid(x) {
-    return 1 / (1 + Math.exp(-x));
+    let smaller = x / 10;
+    return 1 / (1 + Math.exp(-smaller));
 } 
 function sigmoidDerivative(x, learningRate) {
     const fx = sigmoid(x);
