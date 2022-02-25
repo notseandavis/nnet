@@ -49,7 +49,7 @@ const GameScreen = () => {
       const newWord = getRandomWord();
       wordToGuess.current = newWord.word;
       setCurrentWordIndex(newWord.index);
-      setExpectedResult(getExpectedOutput(fiveLetterWords.length, newWord.index));
+      setExpectedResult(getExpectedOutput(disabledLetters, fiveLetterWords, fiveLetterWords.length, newWord.index));
       setInputWord('');
       setGuessList([]);
       setGamesPlayed(gamesPlayed + 1);
@@ -64,9 +64,9 @@ const GameScreen = () => {
     const guessLen = guessList.length;
     if (guessList[guessLen - 1] === wordToGuess.current) {
       if (trainingMode) {
-        trainingList.forEach((trainingData => {
-          textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-        }));
+        // trainingList.forEach((trainingData => {
+        //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
+        // }));
         textnnet.train(null, null, null, expectedResult);
         setnnetError(textnnet.nnet.globalError);
 
@@ -185,17 +185,16 @@ const GameScreen = () => {
     // Best valid guess from NN
     let rawOutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
     let bestValidGuess: {word: string, index: number } | null = getBestValidGuess(rawOutput, dl, flw);
-    let guess: string = ""
+    let bestValidGuessWord: string = ""
     let bestValidGuessIndex = 0
     if (bestValidGuess) {
-      guess = bestValidGuess.word;
+      bestValidGuessWord = bestValidGuess.word;
       bestValidGuessIndex = bestValidGuess.index;
     }
 
     // Best overall guess from NN
     let rawGuess = getHighestNumberIndex(rawOutput);
     setCertainty(rawGuess.certainty);
-
     let nnBestGuess: string = flw[rawGuess.index].toUpperCase();
     
     let turnPlayedByAi = true;
@@ -205,21 +204,53 @@ const GameScreen = () => {
       invalid = " (Invalid)";
       turnPlayedByAi = false;
 
-      setRandomGuess(bestValidGuess.word);
-      let aDifferentResult = getExpectedOutput(fiveLetterWords.length, bestValidGuessIndex);
-      
-      textnnet.train(null, null, null, aDifferentResult);
-      setnnetError(textnnet.nnet.globalError);
+      if (trainingMode) {
+        let trainingCount = 0;
+        // let aDifferentResult = getExpectedOutput(fiveLetterWords.length, bestValidGuessIndex);
 
+
+        let newResult = "";
+        let learn = () => {
+
+          setRandomGuess("(picking word...)");
+          let randomWordIndex = randomInteger(0, flw.length - 1);
+          let newRandomWord = flw[randomWordIndex].toUpperCase();
+          while (includesDisabledLetter(dl, newRandomWord)) {
+            randomWordIndex = randomInteger(0, flw.length - 1);
+            newRandomWord = flw[randomWordIndex].toUpperCase();
+          }
+          setRandomGuess(newRandomWord);
+
+          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, randomWordIndex);
+
+          textnnet.train(null, null, null, aDifferentResult);
+          setnnetError(textnnet.nnet.globalError);
+          let newGuessRawOutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
+          let newGuessIndex = getHighestNumberIndex(newGuessRawOutput).index;
+          let newGuessWord = flw[newGuessIndex].toUpperCase();
+          
+          if (includesDisabledLetter(dl, newGuessWord) && trainingCount < 10) {
+            trainingCount++;
+            setTimeout(learn, 0);
+          } else {
+            setGuessList(prev => [...prev, newGuessWord]);
+          }
+          
+        }
+        setTimeout(learn, 1);
+      } else {
+        setGuessList(prev => [...prev, bestValidGuessWord]);
+      }
+    } else {
+      setGuessList(prev => [...prev, nnBestGuess]);
     }
+    setNnGuess(nnBestGuess + invalid)
     if (turnPlayedByAi && guessList.length > 1) {
       setTurnsPlayedByAi(turnsPlayedByAi + 1);
     }
-    setNnGuess(nnBestGuess + invalid)
 
 
 
-    setGuessList(prev => [...prev, guess]);
 
 
 
@@ -381,7 +412,7 @@ const GameScreen = () => {
         {"AI Best Guess: " + nnGuess}
       </Text>
       <Text style={styles.gamesplayed} selectable>
-        {"Best Valid Guess: " + randomGuess}
+        {"Trained Valid Guess: " + randomGuess}
       </Text>
       {/* <Text style={styles.gamesplayed} selectable>
         {"Random Guesses (this round): " + randomGuesses}
@@ -574,7 +605,7 @@ function getBestValidGuess(arrayOfNumbers: number[], disabledLetters: string[], 
       bestValidGuess = thisWord;
     }
   }
-  return bestValidGuess ? { word: bestValidGuess.toUpperCase(), index: i } : null;
+  return bestValidGuess ? { word: bestValidGuess.toUpperCase(), index: i } : { word: "", index: 0 };
 }
 
 function getHighestNumberIndex(arrayOfNumbers: number[]) {
@@ -589,10 +620,10 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
   });
   return {index: currentBestGuessOfIndex, certainty: highestProbability };
 }
-function getExpectedOutput(numberOfOptions: number, activeResultIndex: number) {
+function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 1 : 0);
+    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .5));
   }
   return expectedResult;
 }

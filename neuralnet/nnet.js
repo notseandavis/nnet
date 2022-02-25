@@ -119,7 +119,7 @@ export default class NNEt {
                 }
                 let nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
                 previousLayersDeltas[i].push(nextLayersDelta)
-                error += nextLayersDelta;
+                error = error + nextLayersDelta;
             }
         }
         this.globalError = error;
@@ -200,7 +200,7 @@ function startingWeight(random) {
     return random ? Math.random() : 0.1;
 }
 function sigmoid(x) {
-    let smaller = x / 10;
+    let smaller = x / 2;
     return 1 / (1 + Math.exp(-smaller));
 } 
 function sigmoidDerivative(x, learningRate) {
