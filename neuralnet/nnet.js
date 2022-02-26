@@ -104,6 +104,7 @@ export default class NNEt {
         // and walk backwards through the layers
         for (let i = this.layers.length - 1; i >= 0; i--) {
             for (let ii = (this.layers[i].length - 1); ii >= 0; ii--) {
+                let nextLayersDelta = 0
                 // this layer's input is either the previous layer's output, or the original input
                 let thisLayersInput = i === 0 ? inputs[ii] : allOutputs[i - 1];
                 
@@ -113,11 +114,14 @@ export default class NNEt {
                     // this is the output layer, so we use the expected output for this node
                     let outputDelta = (expectedOutputs[ii] - allOutputs[i][[ii]])
                     nodeDelta = outputDelta;
+                    nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
                 } else {
                     // this is some middle or input layer, add up the previous layers together as they all connect together
-                    previousLayersDeltas[i + 1].forEach(delta => { nodeDelta += delta; });
+                    previousLayersDeltas[i + 1].forEach(delta => { 
+                        nodeDelta = delta; 
+                        nextLayersDelta += this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
+                    });
                 }
-                let nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
                 previousLayersDeltas[i].push(nextLayersDelta)
                 error = error + nextLayersDelta;
             }
@@ -175,13 +179,12 @@ class Node {
     train(inputs, correction, learningRate) {
         let actualOutput = activation(inputs, this.weights, this.bias)
 
-        let delta = (correction * sigmoidDerivative(actualOutput, learningRate));
         
         for (let i = 0; i < inputs.length; i++) {
-            this.weights[i] += inputs[i] * delta;
+            this.weights[i] += correction * sigmoidDerivative(actualOutput, learningRate) * inputs[i];
         }
-        this.bias = this.bias + learningRate * delta;
-        return delta;
+        this.bias = this.bias + learningRate * correction;
+        return correction * sigmoidDerivative(actualOutput, learningRate);
     }
     fire(inputs) {
         if (inputs.length > this.weights.length) {
@@ -197,10 +200,10 @@ class Node {
 }
 
 function startingWeight(random) {
-    return random ? Math.random() : 0.1;
+    return random ? Math.random() : 0;
 }
 function sigmoid(x) {
-    let smaller = x / 2;
+    let smaller = x / 10;
     return 1 / (1 + Math.exp(-smaller));
 } 
 function sigmoidDerivative(x, learningRate) {
