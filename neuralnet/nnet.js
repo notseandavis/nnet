@@ -203,7 +203,7 @@ function startingWeight(random) {
     return random ? Math.random() : 0;
 }
 function sigmoid(x) {
-    let smaller = x / 10;
+    let smaller = x;
     return 1 / (1 + Math.exp(-smaller));
 } 
 function sigmoidDerivative(x, learningRate) {

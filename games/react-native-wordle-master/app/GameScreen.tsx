@@ -11,7 +11,7 @@ import fiveLetterWords from './constants/fiveLetterWords.json';
 const BOARD_TEMPLATE = getInitialBoard();
 const textnnet = new TextNNet(
   [[5]], 
-  [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]], 
+  [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]], 
   0,
   true,
   fiveLetterWords.length);
@@ -153,32 +153,38 @@ const GameScreen = () => {
       disabledLettersInput[disabledLetterIndex] = [1];
     }
 
-    let presentLettersInput = new Array<number[]>();
+    let presentLettersInput = new Array<Array<number>[]>();
     let correctLettersInput = new Array<string>();
 
-    for (let i = 0; i < 26; i++) {
-      presentLettersInput.push([0]);
-    }
+    // for (let i = 0; i < 26; i++) {
+    //   presentLettersInput.push([0]);
+    // }
     for (let i = 0; i < 5; i++) {
       correctLettersInput.push("noletter");
+      presentLettersInput.push([]);
+      for (let j = 0; j < 26; j++) {
+        presentLettersInput[i].push([0]);
+      }
+
     }
     let presentLetters:string[][] = [];
-    
 
-    gl.forEach((guess: string) => {
+
+    gl.forEach((guess: string, i) => {
       for (let ii = 0; ii < guess.length; ii++) {
         const thisLetterindex = textnnet.letterToIndex(guess[ii]);
-
+        
         if (correctWord.includes(guess[ii])) {
-          presentLettersInput[thisLetterindex] = [1];
-          presentLetters.push([guess[ii]]);
+          // presentLetters.push([guess[ii]]);
           if (guess[ii] === correctWord[ii]) {
             correctLettersInput[ii] = guess[ii];
+          } else {
+            presentLettersInput[i][thisLetterindex] = [1];
           }
         }
       }
     });
-    let input =  [[correctLettersInput], [...disabledLettersInput, ...presentLettersInput]];
+    let input =  [[correctLettersInput], [...disabledLettersInput, ...presentLettersInput[0], ...presentLettersInput[1], ...presentLettersInput[2], ...presentLettersInput[3], ...presentLettersInput[4]]];
 
     setTrainingList(prev => [...prev, input]);
     
@@ -229,7 +235,7 @@ const GameScreen = () => {
           }
           setRandomGuess(newRandomWord);
 
-          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, -1);
+          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, randomWordIndex);
 
           textnnet.train(null, null, null, aDifferentResult);
           setnnetError(textnnet.nnet.globalError);
@@ -247,139 +253,21 @@ const GameScreen = () => {
         }
         setTimeout(learn, 1);
       } else {
+        setRandomGuess(bestValidGuessWord);
         setGuessList(prev => [...prev, bestValidGuessWord]);
       }
     } else {
+      if (bestValidGuessWord === wordToGuess.current) {
+        setGamesWon(gamesWon + 1);
+      }
+
+      if (guessList.length > 1) {
+        setTurnsPlayedByAi(turnsPlayedByAi + 1);
+      }
       setGuessList(prev => [...prev, nnBestGuess]);
     }
     setNnGuess(nnBestGuess + invalid)
-    if (turnPlayedByAi && guessList.length > 1) {
-      setTurnsPlayedByAi(turnsPlayedByAi + 1);
 
-    if (bestValidGuessWord === wordToGuess.current) {
-      setGamesWon(gamesWon + 1);
-    }
-
-  }
-
-
-
-
-
-
-
-    // let rawGuess = getHighestNumberIndex(rawOutput);
-    // let guess: string;
-    // setCertainty(rawGuess.certainty);
-
-    // let neuralNetworkBestGuess = flw[rawGuess.index].toUpperCase();
-    // let turnPlayedByAi = true;
-
-    // if (neuralNetworkBestGuess === wordToGuess.current) {
-    //   setGamesWon(gamesWon + 1);
-    // }
-
-    // let invalid = "";
-    // if (includesDisabledLetter(dl, neuralNetworkBestGuess)) {
-    //   invalid = " (Invalid)";
-    //   turnPlayedByAi = false;
-    //   setRandomGuess(neuralNetworkBestGuess);
-    // }
-    // if (turnPlayedByAi && guessList.length > 1) {
-    //   setTurnsPlayedByAi(turnsPlayedByAi + 1);
-    // }
-    
-    // guess = neuralNetworkBestGuess;
-    // setNnGuess(neuralNetworkBestGuess + invalid)
-
-
-
-    
-    
-
-    // if (guess) {
-    //   setGuessList(prev => [...prev, guess.join("")]);
-    //   return;
-    // }
-
-
-    
-    // if (!turnPlayedByAi) {
-    //   let randomWordIndex = randomInteger(0, flw.length - 1);
-    //   let newRandomWord = flw[randomWordIndex].toUpperCase().split("");
-    //   while (includesDisabledLetter(dl, newRandomWord)) {
-    //     randomWordIndex = randomInteger(0, flw.length - 1);
-    //     newRandomWord = flw[randomWordIndex].toUpperCase().split("");
-    //   }
-
-    //   let aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
-    //   textnnet.train(null, null, null, aDifferentResult);
-    //   let anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
-    //   let anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
-
-    //   guess = flw[anotherRawGuess.index].toUpperCase().split("");
-    //   setRandomGuess(guess.join(""));
-    //   let timesTrained = 0;
-    //   while (includesDisabledLetter(dl, guess)) {
-    //     aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
-    //     textnnet.train(null, null, null, aDifferentResult);
-    //     anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
-    //     anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
-    //     // setCertainty(rawGuess.certainty);
-    //     guess = flw[anotherRawGuess.index].toUpperCase().split("");
-    //     timesTrained++;
-    //     setRandomGuess(guess.join("") + (" (Training AI x " + timesTrained + ")"));
-    //   }
-
-      
-    //   // wordlList.splice(randomWordIndex, 1);
-    // }
-    // setGuessList(prev => [...prev, guess.join("")]);
-    
-    
-    
-    
-    // let trainingLoop = (wordlList: string[]) => {
-    //   if (
-    //     dl.includes(guess[0]) || 
-    //     dl.includes(guess[1]) || 
-    //     dl.includes(guess[2]) || 
-    //     dl.includes(guess[3]) || 
-    //     dl.includes(guess[4])
-    //   ) {
-    //     // If its the first loop we know the NN guessed an invalid option
-
-
-    //     setTimeout(() => {
-    //       timesTrained++;
-    //       setRandomGuesses(timesTrained);
-    //       let randomWordIndex = randomInteger(0, wordlList.length - 1);
-    //       let newRandomWord = wordlList[randomWordIndex].toUpperCase().split("");
-
-    //       while (dl.includes(newRandomWord[0]) || 
-    //       dl.includes(newRandomWord[1]) || 
-    //       dl.includes(newRandomWord[2]) || 
-    //       dl.includes(newRandomWord[3]) || 
-    //       dl.includes(newRandomWord[4])) {
-    //         newRandomWord = wordlList[randomInteger(0, wordlList.length - 1)].toUpperCase().split("");
-    //       }
-
-    //       let aDifferentResult = getExpectedOutput(fiveLetterWords.length, randomWordIndex);
-    //       textnnet.train(null, null, null, aDifferentResult);
-    //       let anotherRawoutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
-    //       let anotherRawGuess = getHighestNumberIndex(anotherRawoutput);
-    //       // setCertainty(rawGuess.certainty);
-    //       guess = flw[anotherRawGuess.index].toUpperCase().split("");
-    //       // wordlList.splice(randomWordIndex, 1);
-    //       setRandomGuess(guess.join(""));
-    //       trainingLoop(wordlList);
-    //     }, 1, [wordlList]);
-    //   } else {
-    //     setNnStatus("Playing...");
-    //     setGuessList(prev => [...prev, guess.join("")]);
-    //   }
-    // }
-    // trainingLoop([...flw]);
   };
 
   const callback = (event: MessageEvent) => {
@@ -636,7 +524,7 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
 function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .25));
+    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .85));
   }
   return expectedResult;
 }
