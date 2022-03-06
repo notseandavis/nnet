@@ -77,9 +77,10 @@ const GameScreen = () => {
       setTrainingList([]);
       setGameOver(true);
       
-    } else if (guessLen === MAX_GUESSES) {
+    } else if (guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
       if (trainingMode) {
         textnnet.train(null, null, null, getExpectedOutput(disabledLetters, fiveLetterWords, fiveLetterWords.length, wordToGuessIndex.current));
+        setnnetError(textnnet.nnet.globalError);
       }
       setTrainingList([]);
       setGameOver(true);
@@ -217,8 +218,8 @@ const GameScreen = () => {
       invalid = " (Invalid)";
       turnPlayedByAi = false;
 
-      if (false) {
-      // if (trainingMode) {
+      // if (false) {
+      if (trainingMode) {
         let trainingCount = 0;
         // let aDifferentResult = getExpectedOutput(fiveLetterWords.length, bestValidGuessIndex);
 
@@ -253,15 +254,15 @@ const GameScreen = () => {
         }
         setTimeout(learn, 1);
       } else {
-        setRandomGuess(bestValidGuessWord);
-        setGuessList(prev => [...prev, bestValidGuessWord]);
+        // setRandomGuess(bestValidGuessWord);
+        setGuessList(prev => [...prev, ""]);
       }
     } else {
       if (bestValidGuessWord === wordToGuess.current) {
         setGamesWon(gamesWon + 1);
       }
 
-      if (guessList.length > 1) {
+      if (guessList.length > 0) {
         setTurnsPlayedByAi(turnsPlayedByAi + 1);
       }
       setGuessList(prev => [...prev, nnBestGuess]);
@@ -524,7 +525,7 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
 function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .85));
+    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .5));
   }
   return expectedResult;
 }

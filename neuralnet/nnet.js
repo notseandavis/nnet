@@ -173,6 +173,8 @@ class Node {
             }
         });
         this.bias = bias;
+        this.momentum = 0.001;
+        this.previousAdjustments = Array.apply(null, Array(inputs)).map(function () { return startingWeight(randomInitialWeights); });
     }
     // inputs = [];
 
@@ -181,7 +183,10 @@ class Node {
 
         
         for (let i = 0; i < inputs.length; i++) {
-            this.weights[i] += correction * sigmoidDerivative(actualOutput, learningRate) * inputs[i];
+            let weightAdjustment = correction * sigmoidDerivative(actualOutput, learningRate) * inputs[i];
+            let momentumAdjustment = this.previousAdjustments[i] * this.momentum;
+            this.previousAdjustments[i] = weightAdjustment;
+            this.weights[i] += weightAdjustment + momentumAdjustment;
         }
         this.bias = this.bias + learningRate * correction;
         return correction * sigmoidDerivative(actualOutput, learningRate);
