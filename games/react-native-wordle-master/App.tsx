@@ -13,6 +13,7 @@ export default function App() {
         <SourceLink />
       </SafeAreaView>
     </View>
+    
   );
 }
 
