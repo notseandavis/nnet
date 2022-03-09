@@ -366,8 +366,12 @@ const GameScreen = () => {
         max={100}
       />
 
-      <TextField id="outlined-basic" label="Learning Rate" variant="outlined" disabled={running} defaultValue={textnnet.nnet.learningRate} onChange={(e, value)=>{textnnet.nnet.learningRate = value; }}/>
-      <TextField id="outlined-basic" label="Momentum" variant="outlined" disabled={running} defaultValue={textnnet.nnet.momentum} onChange={(e, value)=>{textnnet.nnet.momentum = value; }}/>
+      <TextField id="outlined-basic" label="Learning Rate" variant="outlined" disabled={running} defaultValue={textnnet.nnet.learningRate} onChange={(e)=>{
+        textnnet.nnet.learningRate = parseFloat(e.target.value); 
+        }}/>
+      <TextField id="outlined-basic" label="Momentum" variant="outlined" disabled={running} defaultValue={textnnet.nnet.momentum} onChange={(e)=>{
+        textnnet.nnet.momentum = parseFloat(e.target.value); 
+        }}/>
       <Divider variant="inset"/>
       </>}
 
