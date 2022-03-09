@@ -1,21 +1,21 @@
 {
   "files": {
-    "app.js": "/react-native-wordle/static/js/app.79c58e0f.chunk.js",
-    "app.js.map": "/react-native-wordle/static/js/app.79c58e0f.chunk.js.map",
-    "runtime~app.js": "/react-native-wordle/static/js/runtime~app.2e78fe0b.js",
-    "runtime~app.js.map": "/react-native-wordle/static/js/runtime~app.2e78fe0b.js.map",
-    "static/js/2.98d0444c.chunk.js": "/react-native-wordle/static/js/2.98d0444c.chunk.js",
-    "static/js/2.98d0444c.chunk.js.map": "/react-native-wordle/static/js/2.98d0444c.chunk.js.map",
-    "favicon-16.png": "/react-native-wordle/favicon-16.png",
-    "favicon-32.png": "/react-native-wordle/favicon-32.png",
-    "favicon.ico": "/react-native-wordle/favicon.ico",
-    "index.html": "/react-native-wordle/index.html",
-    "manifest.json": "/react-native-wordle/manifest.json",
-    "serve.json": "/react-native-wordle/serve.json",
-    "static/js/2.98d0444c.chunk.js.LICENSE.txt": "/react-native-wordle/static/js/2.98d0444c.chunk.js.LICENSE.txt"
+    "app.js": "/nnet/static/js/app.79c58e0f.chunk.js",
+    "app.js.map": "/nnet/static/js/app.79c58e0f.chunk.js.map",
+    "runtime~app.js": "/nnet/static/js/runtime~app.c8624fd9.js",
+    "runtime~app.js.map": "/nnet/static/js/runtime~app.c8624fd9.js.map",
+    "static/js/2.98d0444c.chunk.js": "/nnet/static/js/2.98d0444c.chunk.js",
+    "static/js/2.98d0444c.chunk.js.map": "/nnet/static/js/2.98d0444c.chunk.js.map",
+    "favicon-16.png": "/nnet/favicon-16.png",
+    "favicon-32.png": "/nnet/favicon-32.png",
+    "favicon.ico": "/nnet/favicon.ico",
+    "index.html": "/nnet/index.html",
+    "manifest.json": "/nnet/manifest.json",
+    "serve.json": "/nnet/serve.json",
+    "static/js/2.98d0444c.chunk.js.LICENSE.txt": "/nnet/static/js/2.98d0444c.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
-    "static/js/runtime~app.2e78fe0b.js",
+    "static/js/runtime~app.c8624fd9.js",
     "static/js/2.98d0444c.chunk.js",
     "static/js/app.79c58e0f.chunk.js"
   ]
