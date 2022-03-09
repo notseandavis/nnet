@@ -1,6 +1,6 @@
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class NNEt {
-    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false) {
+    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false, momentum = 0.001) {
         // array of inputs
         this.inputs = inputs;
         // e.x. [[1], [2], [1]]
@@ -17,6 +17,8 @@ export default class NNEt {
 
         // Learning rate
         this.learningRate = learningRate;
+
+        this.momentum = momentum;
         
         // Randomize initial weights
         this.randomInitialWeights = randomInitialWeights;
@@ -114,12 +116,12 @@ export default class NNEt {
                     // this is the output layer, so we use the expected output for this node
                     let outputDelta = (expectedOutputs[ii] - allOutputs[i][[ii]])
                     nodeDelta = outputDelta;
-                    nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
+                    nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate, this.momentum);
                 } else {
                     // this is some middle or input layer, add up the previous layers together as they all connect together
                     previousLayersDeltas[i + 1].forEach(delta => { 
                         nodeDelta = delta; 
-                        nextLayersDelta += this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate);
+                        nextLayersDelta += this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate, this.momentum);
                     });
                 }
                 previousLayersDeltas[i].push(nextLayersDelta)
@@ -173,18 +175,17 @@ class Node {
             }
         });
         this.bias = bias;
-        this.momentum = 0.001;
         this.previousAdjustments = Array.apply(null, Array(inputs)).map(function () { return startingWeight(randomInitialWeights); });
     }
     // inputs = [];
 
-    train(inputs, correction, learningRate) {
+    train(inputs, correction, learningRate, momentum) {
         let actualOutput = activation(inputs, this.weights, this.bias)
 
         
         for (let i = 0; i < inputs.length; i++) {
             let weightAdjustment = correction * sigmoidDerivative(actualOutput, learningRate) * inputs[i];
-            let momentumAdjustment = this.previousAdjustments[i] * this.momentum;
+            let momentumAdjustment = this.previousAdjustments[i] * momentum;
             this.previousAdjustments[i] = weightAdjustment;
             this.weights[i] += weightAdjustment + momentumAdjustment;
         }

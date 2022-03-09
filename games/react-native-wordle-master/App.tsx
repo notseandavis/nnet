@@ -6,8 +6,8 @@ import GameScreen from './app/GameScreen';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.container}>
+    <View>
+      <SafeAreaView>
         <ScreenHeader />
         <GameScreen />
         <SourceLink />
@@ -18,8 +18,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
+  // container: {
+  //   flex: 1,
+  //   backgroundColor: '#000',
+  // },
 });

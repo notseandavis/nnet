@@ -4,8 +4,7 @@ import {StyleSheet, Text, View} from 'react-native';
 const ScreenHeader = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Wordle</Text>
-      <Text style={styles.subtitle}>react native</Text>
+      <Text style={styles.title}>neural net wordle</Text>
     </View>
   );
 };
