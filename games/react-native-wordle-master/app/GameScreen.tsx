@@ -296,6 +296,10 @@ const GameScreen = () => {
 
   const rows = [
     {
+      name: "Possible Answers",
+      value: fiveLetterWords.length
+    },
+    {
       name: "Best Guess",
       value: nnGuess
     },
@@ -350,7 +354,7 @@ const GameScreen = () => {
 
       <Slider
         disabled
-        defaultValue={"1"}
+        defaultValue={1}
         // getAriaValueText={}
         valueLabelDisplay="auto"
         onChange= {(e, value) => {
@@ -388,7 +392,7 @@ const GameScreen = () => {
           <Switch defaultChecked onChange={(e, value) => {
             setTrainingMode(value);
           }}/>
-        } label="Training Mode (train with correct word after game)" />
+        } label="Train with correct word after game" />
         <FormControlLabel control={
           <Switch onChange={(e, value) => {
             setEndGameOnGuessWithDisabledLetter(value)
