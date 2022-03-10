@@ -1,22 +1,22 @@
 {
   "files": {
-    "app.js": "/nnet/static/js/app.79c58e0f.chunk.js",
-    "app.js.map": "/nnet/static/js/app.79c58e0f.chunk.js.map",
+    "app.js": "/nnet/static/js/app.5a220095.chunk.js",
+    "app.js.map": "/nnet/static/js/app.5a220095.chunk.js.map",
     "runtime~app.js": "/nnet/static/js/runtime~app.c8624fd9.js",
     "runtime~app.js.map": "/nnet/static/js/runtime~app.c8624fd9.js.map",
-    "static/js/2.98d0444c.chunk.js": "/nnet/static/js/2.98d0444c.chunk.js",
-    "static/js/2.98d0444c.chunk.js.map": "/nnet/static/js/2.98d0444c.chunk.js.map",
+    "static/js/2.2e0ea2b4.chunk.js": "/nnet/static/js/2.2e0ea2b4.chunk.js",
+    "static/js/2.2e0ea2b4.chunk.js.map": "/nnet/static/js/2.2e0ea2b4.chunk.js.map",
     "favicon-16.png": "/nnet/favicon-16.png",
     "favicon-32.png": "/nnet/favicon-32.png",
     "favicon.ico": "/nnet/favicon.ico",
     "index.html": "/nnet/index.html",
     "manifest.json": "/nnet/manifest.json",
     "serve.json": "/nnet/serve.json",
-    "static/js/2.98d0444c.chunk.js.LICENSE.txt": "/nnet/static/js/2.98d0444c.chunk.js.LICENSE.txt"
+    "static/js/2.2e0ea2b4.chunk.js.LICENSE.txt": "/nnet/static/js/2.2e0ea2b4.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime~app.c8624fd9.js",
-    "static/js/2.98d0444c.chunk.js",
-    "static/js/app.79c58e0f.chunk.js"
+    "static/js/2.2e0ea2b4.chunk.js",
+    "static/js/app.5a220095.chunk.js"
   ]
 }
