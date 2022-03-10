@@ -8,18 +8,12 @@ import {getInitialBoard, getRandomWord, getWordleEmoji} from './gameUtils';
 import TextNNet  from '../../../neuralnet/textnnet';
 import fiveLetterWords from './constants/fiveLetterWords.json';
 import {Button, FormGroup, Switch, FormControlLabel, Box, Container, TableContainer, Table, TableCell, TableRow, Paper, TableBody, TableHead, Grid, Slider, Typography, TextField, Divider} from '@mui/material';
+import { Chart } from "react-google-charts";
+import HistoryChart from './components/HistoryChart';
 
 const BOARD_TEMPLATE = getInitialBoard();
-const textnnet = new TextNNet(
-  [[5]], 
-  [
-    // game progress
-    [1], [1], [1], [1], [1], [1],
-    // other inputs
-    [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]], 
-  0,
-  true,
-  fiveLetterWords.length);
+let textnnet: TextNNet;
+let wordList = fiveLetterWords;
 
 const GameScreen = () => {
   const [guessList, setGuessList] = useState<string[]>([]);
@@ -27,10 +21,12 @@ const GameScreen = () => {
   const [firstGuess, setFirstGuess] = useState<string>('');
   const [nnStatus, setNnStatus] = useState<string>('');
   const [certainty, setCertainty] = useState<number>(0);
+  const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(0);
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
   const [speed, setSpeed] = useState<number>(0);
-  const [learningRate, setLearningRate] = useState<number>(0.5);
+  const [layers, setLayers] = useState<number>(0);
+  const [learningRate, setLearningRate] = useState<number>(0.005);
   const [momentum, setMomentum] = useState<number>(0.001);
   const [nnGuess, setNnGuess] = useState<string>('');
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
@@ -49,6 +45,9 @@ const GameScreen = () => {
   const [nnError, setnnError] = useState<number>(0);
   const [originalWeights, setOriginalWeights] = useState<object>({});
   const [trainingList, setTrainingList] = useState<(number[][] | string[][])[]>([]);
+  const [scoreList, setScoreList] = useState<[number, string][]>([]);
+  const [scoreHistory, setScoreHistory] = useState<[number, number, number][]>([[0, 0, 0]]);
+
 
   
   const [gamesWon, setGamesWon] = useState<number>(0);
@@ -59,11 +58,11 @@ const GameScreen = () => {
 
   useEffect(() => {
     if (gameOver === false) {
-      const newWord = getRandomWord();
+      const newWord = getRandomWord(wordList);
       wordToGuess.current = newWord.word;
       wordToGuessIndex.current = newWord.index
       setCurrentWordIndex(newWord.index);
-      // setExpectedResult(getExpectedOutput(disabledLetters, fiveLetterWords, fiveLetterWords.length, newWord.index));
+      // setExpectedResult(getExpectedOutput(disabledLetters, wordList, wordList.length, newWord.index));
       setInputWord('');
       setGuessList([]);
       setGamesPlayed(gamesPlayed + 1);
@@ -81,17 +80,16 @@ const GameScreen = () => {
         // trainingList.forEach((trainingData => {
         //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
         // }));
-        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, fiveLetterWords, fiveLetterWords.length, wordToGuessIndex.current));
+        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
         setnnError(textnnet.nnet.globalError);
 
       }
-
       setTrainingList([]);
       setGameOver(true);
       
     } else if (guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
-      if (trainingMode) {
-        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, fiveLetterWords, fiveLetterWords.length, wordToGuessIndex.current));
+      if (trainingMode && textnnet) {
+        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
         setnnError(textnnet.nnet.globalError);
       }
       setTrainingList([]);
@@ -120,7 +118,7 @@ const GameScreen = () => {
     // fire the next turn when disabled letters are reset
     setTurnsPlayed(turnsPlayed + 1);
     setTimeout(() => {
-      runNNet(wordToGuess.current, guessList, disabledLetters, fiveLetterWords);
+      runNNet(wordToGuess.current, guessList, disabledLetters, wordList);
     },speed)
     // window.postMessage('start nnet');
   }, [disabledLetters])
@@ -149,7 +147,7 @@ const GameScreen = () => {
   );
 
   const runNNet = (cw: string, gl: string[], dl: string[], flw: string[]) => {
-    if (!running) {
+    if (!running || !textnnet) {
       return;
     }
 
@@ -220,10 +218,18 @@ const GameScreen = () => {
     let rawGuess = getHighestNumberIndex(rawOutput);
     setCertainty(rawGuess.certainty);
     let nnBestGuess: string = flw[rawGuess.index].toUpperCase();
-    
+    // let sl = getScoresWithWords(rawOutput, flw);
+    // setScoreList(sl);
     let turnPlayedByAi = true;
     let invalid: string = "";
 
+    let sh: [number, number, number][];
+    sh = [...scoreHistory]
+    if (scoreHistory.length > 100) {
+      sh.splice(0, 1);
+    } 
+    sh.push([gamesPlayed, rawGuess.certainty, rawOutput[wordToGuessIndex.current]]);
+    setScoreHistory(sh);
     if (includesDisabledLetter(dl, nnBestGuess) && (endGameOnGuessWithDisabledLetter || trainWithValidRandomGuess)) {
       invalid = "(invalid)";
       // If the very best guess is not valid, do some stuff
@@ -233,7 +239,7 @@ const GameScreen = () => {
       } else if (trainWithValidRandomGuess) {
 
         let trainingCount = 0;
-        // let aDifferentResult = getExpectedOutput(fiveLetterWords.length, bestValidGuessIndex);
+        // let aDifferentResult = getExpectedOutput(wordList.length, bestValidGuessIndex);
         
         
         let newResult = "";
@@ -280,7 +286,7 @@ const GameScreen = () => {
 
   const callback = (event: MessageEvent) => {
     if (event.data == 'start nnet') {
-      runNNet(wordToGuess.current, guessList, disabledLetters, fiveLetterWords);
+      runNNet(wordToGuess.current, guessList, disabledLetters, wordList);
     }
   };
 
@@ -293,11 +299,11 @@ const GameScreen = () => {
 
     return getWordleEmoji(wordToGuess.current, guessList);
   }, [gameOver, guessList]);
-
+  const scores = scoreList.slice(0, 10);
   const rows = [
     {
       name: "Possible Answers",
-      value: fiveLetterWords.length
+      value: numberOfPossibleAnswers
     },
     {
       name: "Best Guess",
@@ -311,6 +317,10 @@ const GameScreen = () => {
       name: "Answer",
       value: wordToGuess.current
     },
+    // {
+    //   name: "Score of answer",
+    //   value: scoreHistory[scoreHistory.length - 1]?
+    // },
     {
       name: "Turns Played",
       value: turnsPlayed
@@ -332,13 +342,32 @@ const GameScreen = () => {
       value: nnError.toFixed(5)
     }
   ];
+
   return (
     <Box>
       <Container maxWidth="md">
         <Grid container spacing="2">
+
+      <HistoryChart historyData={scoreHistory}/>
           <Grid item md="6">
             
+    {!running && <>
       <Button disabled={running} variant="contained" onClick={() => { 
+        if (!textnnet) {
+          textnnet = new TextNNet(
+            [[5]], 
+            [
+              // game progress
+              [1], [1], [1], [1], [1], [1],
+              // other inputs
+              [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]], 
+            0,
+            true,
+            wordList.length,
+            layers,
+            learningRate,
+            momentum);
+        }
         if (!running) {
           setRunning(true);
         } else {
@@ -347,34 +376,105 @@ const GameScreen = () => {
         
         } }>{ running ? "Start AI" : "Start AI"}</Button>
     
-    {!running && <>
+    <Typography variant="h5">
+      Neural Network Options
+    </Typography>
     <Typography id="non-linear-slider" gutterBottom>
-      Layers:
+      (you can't change these later)
+    </Typography>
+    <Typography id="non-linear-slider" gutterBottom>
+      Middle Layers:
     </Typography>
 
       <Slider
-        disabled
-        defaultValue={1}
+      disabled={textnnet}
+        defaultValue={layers}
         // getAriaValueText={}
         valueLabelDisplay="auto"
         onChange= {(e, value) => {
-          setSpeed(value)
+          setLayers(value)
         }}
         step={1}
         marks
-        min={1}
-        max={100}
+        min={0}
+        max={10}
       />
 
-      <TextField id="outlined-basic" label="Learning Rate" variant="outlined" disabled={running} defaultValue={textnnet.nnet.learningRate} onChange={(e)=>{
-        textnnet.nnet.learningRate = parseFloat(e.target.value); 
-        }}/>
-      <TextField id="outlined-basic" label="Momentum" variant="outlined" disabled={running} defaultValue={textnnet.nnet.momentum} onChange={(e)=>{
-        textnnet.nnet.momentum = parseFloat(e.target.value); 
-        }}/>
-      <Divider variant="inset"/>
-      </>}
+      <Typography id="non-linear-slider" gutterBottom>
+        Number of answers:
+      </Typography>
+  
+        <Slider
+        disabled={textnnet}
+          defaultValue={wordList.length}
+          // getAriaValueText={}
+          valueLabelDisplay="auto"
+          onChange= {(e, value) => {
+            wordList = fiveLetterWords.slice(0, value)
+            setNumberOfPossibleAnswers(value);
+          }}
+          step={1}
+          // marks
+          min={1}
+          max={fiveLetterWords.length}
+        />
+      
+      </>
+      }
 
+      <Typography variant="h5">
+      Game/Training Options
+    </Typography>
+
+    <TextField 
+      id="outlined-basic" 
+      label="Learning Rate (between 0 and 1)" 
+      variant="outlined" 
+      defaultValue={learningRate} 
+      helperText="Changes can break the game"
+      onChange={(e)=>{
+         if (/^(0(\.\d+)?|1(\.0+)?)$/.test(e.target.value)) {
+           setLearningRate(parseFloat(e.target.value)); 
+           if (textnnet) {
+             textnnet.nnet.learningRate = e.target.value;
+           }
+         }
+        
+        }}/>
+      <TextField 
+      id="outlined-basic" 
+      label="Momentum (between 0 and 1" 
+      helperText="Changes this can break the game"
+      variant="outlined" 
+      defaultValue={momentum} 
+      onChange={(e)=>{
+        
+        if (/^(0(\.\d+)?|1(\.0+)?)$/.test(e.target.value)) {
+          setMomentum(parseFloat(e.target.value)); 
+          if (textnnet) {
+            textnnet.nnet.momentum = e.target.value;
+          }
+        }
+        }}/>
+    {/* <Typography id="non-linear-slider" gutterBottom>
+        Learning Rate
+      </Typography>
+  
+        <Slider
+          defaultValue={learningRate}
+          // getAriaValueText={}
+          valueLabelDisplay="auto"
+          onChange= {(e, value) => {
+            setLearningRate(parseFloat(value)); 
+            if (textnnet) {
+              textnnet.nnet.learningRate = value;
+            }
+          }}
+          step={0.000000001}
+          // marks
+          min={0}
+          max={1}
+        /> */}
       <Typography id="non-linear-slider" gutterBottom>
       Speed:
     </Typography>
@@ -508,6 +608,36 @@ const GameScreen = () => {
         />
       </View>
 
+    {/* <Typography variant="h5">
+      Top 10 Guesses
+    </Typography>
+      <TableContainer component={Paper}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Dessert (100g serving)</TableCell>
+            <TableCell align="right">Calories</TableCell>
+            <TableCell align="right">Fat&nbsp;(g)</TableCell>
+            <TableCell align="right">Carbs&nbsp;(g)</TableCell>
+            <TableCell align="right">Protein&nbsp;(g)</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {scores.map((score, i) => (
+            <TableRow
+              key={i}
+              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+            >
+              <TableCell component="th" scope="row">
+                {i + 1}
+              </TableCell>
+              <TableCell align="right">{score[1]}</TableCell>
+              <TableCell align="right">{score[0]}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer> */}
     </Grid>
     </Grid>
       </Container>
@@ -597,16 +727,10 @@ export default GameScreen;
 //   ["z", 25],
 // ]);
 
-function getBestValidGuess(arrayOfNumbers: number[], disabledLetters: string[], wordList: string[]) {
-  let scoresAndIndexes: {score: number, index: number}[] = [];
-  arrayOfNumbers.forEach((number, i) => {
-    scoresAndIndexes.push({score: number, index: i});
-  })
-  scoresAndIndexes.sort((a, b) => {
-    return a.score - b.score;
-  });
-  let bestValidGuess = null;
+function getBestValidGuess(scoresAndIndexes: {score: number, index: number, word: string }[], disabledLetters: string[]) {
+
   let i = scoresAndIndexes.length;
+  let bestValidGuess;
   while (!bestValidGuess && i > -1) {
     i--;
     let thisWord = wordList[scoresAndIndexes[i].index];
@@ -615,6 +739,19 @@ function getBestValidGuess(arrayOfNumbers: number[], disabledLetters: string[], 
     }
   }
   return bestValidGuess ? { word: bestValidGuess.toUpperCase(), index: i } : { word: "", index: 0 };
+}
+
+function getScoresWithWords(arrayOfNumbers: number[], words: string[]) {
+  let scoresAndIndexes: [number, string][] = [];
+  arrayOfNumbers.forEach((n, i) => {
+    scoresAndIndexes.push([n, words[i].toUpperCase()]);
+    // scoresAndIndexes[i].push(n);
+    // scoresAndIndexes[i].push()
+  })
+  scoresAndIndexes.sort((a, b) => {
+    return b[0] - a[0];
+  });
+  return scoresAndIndexes;
 }
 
 function getHighestNumberIndex(arrayOfNumbers: number[]) {

@@ -10,11 +10,11 @@ export const getInitialBoard = (): string[][] => {
   return board;
 };
 
-export const getRandomWord = (): { word: string, index: number } => {
-  const len = fiveLetterWords.length;
+export const getRandomWord = (wordList: string[]): { word: string, index: number } => {
+  const len = wordList.length;
   const randomIndex = Math.floor(Math.random() * 100000) % len;
   return {
-    word: fiveLetterWords[randomIndex].toUpperCase(),
+    word: wordList[randomIndex].toUpperCase(),
     index: randomIndex
   };
 };
