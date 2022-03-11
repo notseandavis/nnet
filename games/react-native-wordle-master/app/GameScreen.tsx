@@ -21,6 +21,7 @@ const GameScreen = () => {
   const [firstGuess, setFirstGuess] = useState<string>('');
   const [nnStatus, setNnStatus] = useState<string>('');
   const [certainty, setCertainty] = useState<number>(0);
+  const [answerCertainty, setAnswerCertainty] = useState<number>(0);
   const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(0);
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
@@ -66,6 +67,14 @@ const GameScreen = () => {
       setInputWord('');
       setGuessList([]);
       setGamesPlayed(gamesPlayed + 1);
+    } else {
+      let sh: [number, number, number][];
+      sh = [...scoreHistory]
+      if (scoreHistory.length > 50) {
+        sh.splice(0, 1);
+      } 
+      sh.push([gamesPlayed, certainty, answerCertainty]);
+      setScoreHistory(sh);
     }
     if (running) {
       setGameOver(false)
@@ -200,7 +209,7 @@ const GameScreen = () => {
 
     let input =  [[correctLettersInput], [...gameProgressInput, ...disabledLettersInput, ...presentLettersInput[0], ...presentLettersInput[1], ...presentLettersInput[2], ...presentLettersInput[3], ...presentLettersInput[4]]];
 
-    setTrainingList(prev => [...prev, input]);
+    // setTrainingList(prev => [...prev, input]);
     
     let timesTrained = 0;
     setNnStatus("Playing...");
@@ -217,19 +226,13 @@ const GameScreen = () => {
     // Best overall guess from NN
     let rawGuess = getHighestNumberIndex(rawOutput);
     setCertainty(rawGuess.certainty);
+    setAnswerCertainty(rawOutput[wordToGuessIndex.current]);
     let nnBestGuess: string = flw[rawGuess.index].toUpperCase();
     // let sl = getScoresWithWords(rawOutput, flw);
     // setScoreList(sl);
     let turnPlayedByAi = true;
     let invalid: string = "";
 
-    let sh: [number, number, number][];
-    sh = [...scoreHistory]
-    if (scoreHistory.length > 100) {
-      sh.splice(0, 1);
-    } 
-    sh.push([gamesPlayed, rawGuess.certainty, rawOutput[wordToGuessIndex.current]]);
-    setScoreHistory(sh);
     if (includesDisabledLetter(dl, nnBestGuess) && (endGameOnGuessWithDisabledLetter || trainWithValidRandomGuess)) {
       invalid = "(invalid)";
       // If the very best guess is not valid, do some stuff
@@ -757,7 +760,7 @@ function getScoresWithWords(arrayOfNumbers: number[], words: string[]) {
 function getHighestNumberIndex(arrayOfNumbers: number[]) {
 
   let highestProbability = 0;
-  let currentBestGuessOfIndex = -1;
+  let currentBestGuessOfIndex = 0;
   arrayOfNumbers.forEach((number, i) => {
     if (number > highestProbability) {
       highestProbability = number;
@@ -769,7 +772,7 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
 function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .5));
+    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? 0 : .1));
   }
   return expectedResult;
 }

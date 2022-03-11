@@ -209,6 +209,12 @@ function startingWeight(random) {
     return random ? Math.random() : 0;
 }
 function sigmoid(x) {
+    if (x > 36) {
+        return 0.9999999999999999;
+    }
+    if (x < -36) {
+        return 0.0000000000000001;
+    }
     let smaller = x;
     return 1 / (1 + Math.exp(-smaller));
 } 
