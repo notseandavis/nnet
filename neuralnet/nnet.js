@@ -212,6 +212,20 @@ function sigmoid(x) {
     let smaller = x;
     return 1 / (1 + Math.exp(-smaller));
 } 
+// function activation(x) {
+//     if (x > 0) {
+//         return x;
+//     } else {
+//         return 0;
+//     }
+// } 
+function relu(x) {
+    if (x > 0) {
+        return x;
+    } else {
+        return 0;
+    }
+} 
 function sigmoidDerivative(x, learningRate) {
     const fx = sigmoid(x);
     return fx * (1 + learningRate - fx);
