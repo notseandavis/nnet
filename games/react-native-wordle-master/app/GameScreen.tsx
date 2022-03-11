@@ -444,7 +444,7 @@ const GameScreen = () => {
       <TextField 
       id="outlined-basic" 
       label="Momentum (between 0 and 1" 
-      helperText="Changes this can break the game"
+      helperText="Changes can break the game"
       variant="outlined" 
       defaultValue={momentum} 
       onChange={(e)=>{
