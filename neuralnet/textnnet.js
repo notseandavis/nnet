@@ -3,7 +3,7 @@ import NNEt from "./nnet";
 
 // Work in progress, not usable...
 export default class TextNNet {
-    constructor(textInputs, nonTextInputs, outputChars = 0, outputUpperCase, nonTextOutputs, layers, learningRate, momentum) {
+    constructor(textInputs, nonTextInputs, outputChars = 0, outputUpperCase, nonTextOutputs, layers, learningRate, momentum, activationFunction) {
         // array of inputs
         this.nonTextInputs = nonTextInputs;
         this.textInputs = textInputs;
@@ -130,7 +130,7 @@ export default class TextNNet {
         if (nonTextOutputs && nonTextOutputs > 0) {
             totalOutputs = totalOutputs + nonTextOutputs;
         }
-        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, layers, totalOutputs, learningRate, false, momentum);
+        this.nnet = new NNEt(this.nnetInputs, this.nnetInputs.length, layers, totalOutputs, learningRate, false, momentum, activationFunction);
         
         // nti = non text inputs
         this.fire = function(ti, nti) {

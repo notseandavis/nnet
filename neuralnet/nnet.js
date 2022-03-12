@@ -1,6 +1,6 @@
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class NNEt {
-    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false, momentum = 0.001) {
+    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false, momentum = 0.001, activationFunction = "sigmoid") {
         // array of inputs
         this.inputs = inputs;
         // e.x. [[1], [2], [1]]
@@ -14,6 +14,13 @@ export default class NNEt {
 
         // number of hidden layers
         this.numberOfLayers = numberOfLayers;
+
+        // which activation function to use
+        if (activationFunction === "relu") {
+            this.activationFunction = relu;
+        } else {
+            this.activationFunction = sigmoid;
+        }
 
         // Learning rate
         this.learningRate = learningRate;
@@ -35,7 +42,7 @@ export default class NNEt {
         this.layers.push([]);
         let inputId = 0;
         while (this.layers[i].length < inputs.length) {
-            this.layers[i].push(new Node(inputs[inputId][0]));
+            this.layers[i].push(new Node(inputs[inputId][0], this.randomInitialWeights, this.activationFunction));
             inputId++;
         }
         i++;
@@ -46,12 +53,12 @@ export default class NNEt {
             if (i === 1) {
                 // Layer below the input layer, gets the number of input
                 while (this.layers[i].length < this.numberOfNodes) {
-                    this.layers[i].push(new Node(inputs.length, this.randomInitialWeights)); 
+                    this.layers[i].push(new Node(inputs.length, this.randomInitialWeights, this.activationFunction)); 
                 }
             } else {
                 // Any middle layer
                 while (this.layers[i].length < this.numberOfNodes) {
-                    this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights)); 
+                    this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights, this.activationFunction)); 
                 }
             }
             i++;
@@ -62,10 +69,10 @@ export default class NNEt {
         while (this.layers[i].length < this.outputs) {
             if (this.layers.length > 2) {
                 // There are middle layers, take the number of nodes as the number of inputs
-                this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights));
+                this.layers[i].push(new Node(this.numberOfNodes, this.randomInitialWeights, this.activationFunction));
             } else {
                 // No middle layers, take the input nodes directly
-                this.layers[i].push(new Node(inputs.length, this.randomInitialWeights)); 
+                this.layers[i].push(new Node(inputs.length, this.randomInitialWeights, this.activationFunction)); 
             }
         }
     }
@@ -160,13 +167,14 @@ export default class NNEt {
 }
 
 class Node {
-    constructor(inputs, randomInitialWeights) {
+    constructor(inputs, randomInitialWeights, activationFunction) {
         // number of inputs
         this.inputs = inputs;
         this.weights = Array.apply(null, Array(inputs)).map(function () { return startingWeight(randomInitialWeights); });
-        let bias = 0;
+        this.activationFunction = activationFunction;
         
         // Try to initialize a neutral bias
+        let bias = 0;
         this.weights.forEach(weight => {
             if (weight > 0) {
                 bias = bias - weight;
@@ -184,23 +192,20 @@ class Node {
 
         
         for (let i = 0; i < inputs.length; i++) {
-            let weightAdjustment = correction * sigmoidDerivative(actualOutput, learningRate) * inputs[i];
+            let weightAdjustment = correction * activationDerivative(actualOutput, learningRate, this.activationFunction) * inputs[i];
             let momentumAdjustment = this.previousAdjustments[i] * momentum;
             this.previousAdjustments[i] = weightAdjustment;
             this.weights[i] += weightAdjustment + momentumAdjustment;
         }
         this.bias = this.bias + learningRate * correction;
-        return correction * sigmoidDerivative(actualOutput, learningRate);
+        return correction * activationDerivative(actualOutput, learningRate, this.activationFunction);
     }
     fire(inputs) {
         if (inputs.length > this.weights.length) {
             throw new Error("too many inputs");
         }
         let sum = activation(inputs, this.weights, this.bias)
-        let output = sigmoid(sum);
-        if (output === 0 || output === 1) {
-            throw Error("output out of bounds!!!")
-        }
+        let output = this.activationFunction(sum);
         return output;
     }
 }
@@ -218,22 +223,17 @@ function sigmoid(x) {
     let smaller = x;
     return 1 / (1 + Math.exp(-smaller));
 } 
-// function activation(x) {
-//     if (x > 0) {
-//         return x;
-//     } else {
-//         return 0;
-//     }
-// } 
+
 function relu(x) {
     if (x > 0) {
         return x;
     } else {
         return 0;
     }
-} 
-function sigmoidDerivative(x, learningRate) {
-    const fx = sigmoid(x);
+}
+
+function activationDerivative(x, learningRate, activationFunction) {
+    const fx = activationFunction(x);
     return fx * (1 + learningRate - fx);
 }
 

@@ -1,21 +1,15 @@
+import { Fab } from '@mui/material';
 import React from 'react';
 import {Linking, Platform, StyleSheet, Text, View} from 'react-native';
 
-const HOME_URL = 'https://github.com/LonelyCpp/react-native-wordle';
+const HOME_URL = 'https://github.com/notseandavis/nnet';
 
 const SourceLink = () => {
   return (
     <View style={styles.container}>
-      <Text
-        style={styles.subtitle}
-        accessibilityRole="link"
-        // @ts-ignore (web only prop)
-        href={HOME_URL}
-        onPress={
-          Platform.OS !== 'web' ? () => Linking.openURL(HOME_URL) : undefined
-        }>
-        (github)
-      </Text>
+      <Fab variant="extended" onClick={() => Linking.openURL(HOME_URL)}>
+        github
+      </Fab>
     </View>
   );
 };
@@ -23,13 +17,13 @@ const SourceLink = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 12,
+    right: 20,
     top: 16,
   },
   subtitle: {
-    color: '#5998c5',
-    fontWeight: '400',
-    fontSize: 16,
+    // color: '#5998c5',
+    // fontWeight: '400',
+    // fontSize: 16,
   },
 });
 
