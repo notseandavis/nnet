@@ -87,14 +87,14 @@ const GameScreen = () => {
   useEffect(() => {
     const guessLen = guessList.length;
     if (guessList[guessLen - 1] === wordToGuess.current) {
-      // if (trainingMode) {
-      //   // trainingList.forEach((trainingData => {
-      //   //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-      //   // }));
-      //   textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
-      //   setnnError(textnnet.nnet.globalError);
+      if (trainingMode) {
+        // trainingList.forEach((trainingData => {
+        //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
+        // }));
+        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
+        setnnError(textnnet.nnet.globalError);
 
-      // }
+      }
       setTrainingList([]);
       setGameOver(true);
 
