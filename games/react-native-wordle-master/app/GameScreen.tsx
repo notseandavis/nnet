@@ -366,13 +366,13 @@ const GameScreen = () => {
                   <Typography variant="h5">
                     Neural Network Options
                   </Typography>
-                  <br></br>
-                  <Typography id="non-linear-slider" gutterBottom>
+                  <Divider></Divider>
+                  <Typography variant="subtitle2" id="non-linear-slider" gutterBottom>
                     (you can't change these later)
                   </Typography>
-                  <Divider></Divider>
+                  <br></br>
                   <Typography id="non-linear-slider" gutterBottom>
-                    Middle Layers:
+                    Middle Layers in neural network:
                   </Typography>
 
                   <Slider
@@ -390,8 +390,8 @@ const GameScreen = () => {
                     max={10}
                   />
 
-                  <Typography id="non-linear-slider" gutterBottom>
-                    Number of answers:
+                  <Typography gutterBottom>
+                    Number of possible answers:
                   </Typography>
 
                   <Slider
@@ -424,7 +424,12 @@ const GameScreen = () => {
                       <MenuItem value={'sigmoid'}>Sigmoid</MenuItem>
                       <MenuItem value={'relu'}>ReLU</MenuItem>
                     </Select>
+                  <Typography variant="subtitle2" gutterBottom>
+                    (used in all layers)
+                  </Typography>
                   </FormControl>
+
+
                   <br></br>
                   <Button disabled={running} variant="contained" onClick={() => {
                     if (!textnnet) {
@@ -512,9 +517,72 @@ const GameScreen = () => {
             <Card sx={{ minWidth: 275 }}>
               <CardContent>
                 <Typography variant="h5">
-                  Game/Training Options
+                  Game Options
                 </Typography>
                 <Divider></Divider>
+                
+
+                <FormControlLabel control={
+                  <Switch onChange={(e, value) => {
+                    setEndGameOnGuessWithDisabledLetter(value)
+                    if (value === false) {
+                      setTrainWithValidRandomGuess(false);
+                    }
+                  }} />
+                } label="End game on guesses with disabled letters" />
+
+                <Typography id="non-linear-slider" gutterBottom>
+                  Speed:
+                </Typography>
+                <Slider
+                  aria-label="Speed"
+                  value={speed}
+                  // getAriaValueText={}
+                  valueLabelDisplay="auto"
+                  onChange={(e, value) => {
+                    setSpeed(value)
+                  }}
+                  step={200}
+                  marks
+                  min={0}
+                  max={3000}
+                />
+                <br />
+                <br/>
+                <Typography variant="h5">
+                  Training Options
+                </Typography>
+                <Divider></Divider>
+                <br/>
+                <FormControlLabel control={
+                  <Switch defaultChecked onChange={(e, value) => {
+                    setTrainingMode(value);
+                  }} />
+                } label="Train with correct word after game" />
+                {!endGameOnGuessWithDisabledLetter ? (<>
+                  <FormControlLabel control={
+                    <Switch onChange={(e, value) => {
+                      setTrainWithValidRandomGuess(value)
+                    }} />
+                  } label="Train with random valid guess if AI guesses disabled letter" />
+                  {trainWithValidRandomGuess && (<><Typography id="non-linear-slider" gutterBottom>
+                    Train {trainWithValidRandomGuess} time(s) after invalid guess:
+                  </Typography>
+                    <Slider
+                      aria-label="Train with valid random guess"
+                      value={trainWithValidRandomGuess}
+                      // getAriaValueText={}
+                      valueLabelDisplay="auto"
+                      onChange={(e, value) => {
+                        setTrainWithValidRandomGuess(value)
+                      }}
+                      step={1}
+                      marks
+                      min={1}
+                      max={100}
+                    />
+                  </>)}
+                </>) : (<></>)}
                 <Box
                   component="form"
                   sx={{
@@ -540,9 +608,9 @@ const GameScreen = () => {
 
                     }} />
                   <TextField
+                    label="Momentum (between 0 and 1"
                     id="outlined-basic"
                     margin="normal"
-                    label="Momentum (between 0 and 1"
                     helperText="Changes can break the game"
                     variant="outlined"
                     value={momentum}
@@ -556,61 +624,6 @@ const GameScreen = () => {
                       }
                     }} />
                 </Box>
-                <Typography id="non-linear-slider" gutterBottom>
-                  Speed:
-                </Typography>
-
-                <Slider
-                  aria-label="Speed"
-                  value={speed}
-                  // getAriaValueText={}
-                  valueLabelDisplay="auto"
-                  onChange={(e, value) => {
-                    setSpeed(value)
-                  }}
-                  step={200}
-                  marks
-                  min={0}
-                  max={3000}
-                />
-                <FormControlLabel control={
-                  <Switch defaultChecked onChange={(e, value) => {
-                    setTrainingMode(value);
-                  }} />
-                } label="Train with correct word after game" />
-                <FormControlLabel control={
-                  <Switch onChange={(e, value) => {
-                    setEndGameOnGuessWithDisabledLetter(value)
-                    if (value === false) {
-                      setTrainWithValidRandomGuess(false);
-                    }
-                  }} />
-                } label="End game on guesses with disabled letters" />
-                {!endGameOnGuessWithDisabledLetter ? (<>
-                  <FormControlLabel control={
-                    <Switch onChange={(e, value) => {
-                      setTrainWithValidRandomGuess(value)
-                    }} />
-                  } label="Train with random valid guess if AI guesses disabled letter" />
-                  {trainWithValidRandomGuess && (<><Typography id="non-linear-slider" gutterBottom>
-                    Train {trainWithValidRandomGuess} time(s) after invalid guess:
-                  </Typography>
-
-                    <Slider
-                      aria-label="Speed"
-                      defaultValue={1}
-                      // getAriaValueText={}
-                      valueLabelDisplay="auto"
-                      onChange={(e, value) => {
-                        setSpeed(value)
-                      }}
-                      step={1}
-                      marks
-                      min={1}
-                      max={100}
-                    />
-                  </>)}
-                </>) : (<></>)}
 
                 <br></br>
 
