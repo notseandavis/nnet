@@ -1,5 +1,5 @@
 {
-  "name": "react-native-wordle",
+  "name": "wordle-ai",
   "version": "1.0.0",
   "homepage": "https://notseandavis.github.io/nnet",
   "main": "node_modules/expo/AppEntry.js",

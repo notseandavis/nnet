@@ -531,8 +531,12 @@ const GameScreen = () => {
                   }} />
                 } label="End game on guesses with disabled letters" />
 
+                <Typography variant="subtitle2" gutterBottom>
+                  (can speed up training)
+                </Typography>
+                <br />
                 <Typography id="non-linear-slider" gutterBottom>
-                  Speed:
+                  Speed (ms):
                 </Typography>
                 <Slider
                   aria-label="Speed"
@@ -566,15 +570,15 @@ const GameScreen = () => {
                     }} />
                   } label="Train with random valid guess if AI guesses disabled letter" />
                   {trainWithValidRandomGuess && (<><Typography id="non-linear-slider" gutterBottom>
-                    Train {trainWithValidRandomGuess} time(s) after invalid guess:
+                    Train up to {timesToTrainWithValidWord} time(s) after invalid guess:
                   </Typography>
                     <Slider
                       aria-label="Train with valid random guess"
-                      value={trainWithValidRandomGuess}
+                      value={timesToTrainWithValidWord}
                       // getAriaValueText={}
                       valueLabelDisplay="auto"
                       onChange={(e, value) => {
-                        setTrainWithValidRandomGuess(value)
+                        setTimesToTrainWithValidWord(value)
                       }}
                       step={1}
                       marks

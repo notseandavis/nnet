@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "react-native-wordle",
-    "slug": "react-native-wordle",
+    "name": "wordle-ai",
+    "slug": "wordle-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
