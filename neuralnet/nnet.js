@@ -13,7 +13,8 @@ export default class NNEt {
         this.numberOfNodes = numberOfNodes;
 
         // number of hidden layers
-        this.numberOfLayers = numberOfLayers;
+        // TODO: fix layer creation
+        this.numberOfLayers = numberOfLayers + 1;
 
         // which activation function to use
         if (activationFunction === "relu") {
@@ -48,7 +49,7 @@ export default class NNEt {
         i++;
         
         // Middle layer(s)
-        while (this.layers.length < numberOfLayers) {
+        while (this.layers.length < this.numberOfLayers) {
             this.layers.push([]);
             if (i === 1) {
                 // Layer below the input layer, gets the number of input
