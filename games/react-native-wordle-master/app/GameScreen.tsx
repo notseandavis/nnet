@@ -7,7 +7,7 @@ import { MAX_GUESSES, MAX_WORD_LEN } from './constants/gameConstants';
 import { getInitialBoard, getRandomWord, getWordleEmoji } from './gameUtils';
 import TextNNet from '../../../neuralnet/textnnet';
 import fiveLetterWords from './constants/fiveLetterWords.json';
-import { Button, FormGroup, Switch, FormControlLabel, Box, Container, TableContainer, Table, TableCell, TableRow, Paper, TableBody, TableHead, Grid, Slider, Typography, TextField, Divider, Card, CardContent, InputLabel, MenuItem, Select, FormControl } from '@mui/material';
+import { Button, FormGroup, Switch, FormControlLabel, Box, Container, TableContainer, Table, TableCell, TableRow, Paper, TableBody, TableHead, Grid, Slider, Typography, TextField, Divider, Card, CardContent, InputLabel, MenuItem, Select, FormControl, Input, styled } from '@mui/material';
 import { Chart } from "react-google-charts";
 import HistoryChart from './components/HistoryChart';
 
@@ -18,18 +18,19 @@ let wordList = fiveLetterWords;
 const GameScreen = () => {
   const [guessList, setGuessList] = useState<string[]>([]);
   const [inputWord, setInputWord] = useState<string>('');
+  const [weightSet, setWeightSet] = useState<string>('');
   const [firstGuess, setFirstGuess] = useState<string>('');
   const [nnStatus, setNnStatus] = useState<string>('');
   const [activationFunction, setActivationFunction] = useState<string>('sigmoid');
   const [certainty, setCertainty] = useState<number>(0);
   const [answerCertainty, setAnswerCertainty] = useState<number>(0);
-  const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(0);
+  const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(Math.floor(fiveLetterWords.length / 2));
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
   const [speed, setSpeed] = useState<number>(0);
   const [layers, setLayers] = useState<number>(0);
-  const [learningRate, setLearningRate] = useState<number>(0.005);
-  const [momentum, setMomentum] = useState<number>(0.001);
+  const [learningRate, setLearningRate] = useState<string>("0.005");
+  const [momentum, setMomentum] = useState<string>("0.001");
   const [nnGuess, setNnGuess] = useState<string>('');
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
   const [randomGuess, setRandomGuess] = useState<string>('');
@@ -121,8 +122,11 @@ const GameScreen = () => {
 
     const list: string[] = [];
 
-  }, [guessList, running])
-
+  }, [guessList])
+  
+  useEffect(() => {
+    wordList = fiveLetterWords.slice(0, numberOfPossibleAnswers)
+  }, [numberOfPossibleAnswers])
 
   useEffect(() => {
     // fire the next turn when disabled letters are reset
@@ -355,7 +359,7 @@ const GameScreen = () => {
           <HistoryChart historyData={scoreHistory} />
           <Grid item md={6}>
 
-            {!running && <>
+            {(!running && weightSet !== "exporting") && <>
 
 
               <Card sx={{ minWidth: 275 }}>
@@ -364,7 +368,7 @@ const GameScreen = () => {
                   <Typography variant="h5">
                     Neural Network Options
                   </Typography>
-
+                  <br></br>
                   <Typography id="non-linear-slider" gutterBottom>
                     (you can't change these later)
                   </Typography>
@@ -376,6 +380,7 @@ const GameScreen = () => {
                   <Slider
                     disabled={textnnet}
                     defaultValue={layers}
+                    value={layers}
                     // getAriaValueText={}
                     valueLabelDisplay="auto"
                     onChange={(e, value) => {
@@ -392,12 +397,12 @@ const GameScreen = () => {
                   </Typography>
 
                   <Slider
-                    disabled={textnnet}
-                    defaultValue={wordList.length}
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={numberOfPossibleAnswers}
                     // getAriaValueText={}
                     valueLabelDisplay="auto"
                     onChange={(e, value) => {
-                      wordList = fiveLetterWords.slice(0, value)
                       setNumberOfPossibleAnswers(value);
                     }}
                     step={1}
@@ -434,19 +439,73 @@ const GameScreen = () => {
                           [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]],
                         0,
                         true,
-                        wordList.length,
+                        numberOfPossibleAnswers,
                         layers,
-                        learningRate,
-                        momentum,
+                        parseFloat(learningRate),
+                        parseFloat(momentum),
                         activationFunction);
                     }
                     if (!running) {
                       setRunning(true);
+                      setGuessList([]);
                     } else {
                       setRunning(false);
                     }
 
                   }}>{running ? "Start AI" : "Start AI"}</Button>
+
+<label htmlFor="contained-button-file">
+                    <Input 
+                      sx={{display: "none" }} 
+                      accept=".json" 
+                      id="contained-button-file" 
+                      multiple type="file" 
+                      onChange={(e) => {
+                        const fileReader = new FileReader();
+                        fileReader.readAsText(e.target.files[0], "UTF-8");
+                        let receiveResult = (ws: any) => {
+
+                          setLayers(ws.layers);
+                          setNumberOfPossibleAnswers(ws.numberOfPossibleAnswers);
+                          setLearningRate(ws.learningRate);
+                          setMomentum(ws.momentum);
+                          setTrainingMode(ws.trainingMode);
+                          setTrainWithValidRandomGuess(ws.trainWithValidRandomGuess);
+                          setEndGameOnGuessWithDisabledLetter(ws.endGameOnGuessWithDisabledLetter);
+                          setActivationFunction(ws.activationFunction);
+                          
+                          textnnet = new TextNNet(
+                            [[5]],
+                            [
+                              // game progress
+                              [1], [1], [1], [1], [1], [1],
+                              // other inputs
+                              [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]],
+                            0,
+                            true,
+                            ws.numberOfPossibleAnswers,
+                            ws.layers,
+                            parseFloat(ws.learningRate),
+                            parseFloat(ws.momentum),
+                            ws.activationFunction);
+                          textnnet.nnet.setWeights(ws.weights);
+                          setRunning(true);
+                          setGuessList([]);
+                        }
+                        
+                        fileReader.onload = (e: Event) => {
+                          if (e && e.target && e.target.result) {
+                            console.log("e.target.result", e.target.result);
+                            let ws = JSON.parse(e.target.result);
+                            receiveResult(ws);
+                          }
+                        }
+                      }}
+                      />
+                    <Button variant="outlined" component="span" sx={{marginLeft: 1}}>
+                      Import Weight Set
+                    </Button>
+                  </label>
                 </CardContent>
               </Card>
             </>
@@ -471,13 +530,13 @@ const GameScreen = () => {
                     margin="normal"
                     label="Learning Rate (between 0 and 1)"
                     variant="outlined"
-                    defaultValue={learningRate}
+                    value={learningRate}
                     helperText="Changes can break the game"
                     onChange={(e) => {
-                      if (/^(0(\.\d+)?|1(\.0+)?)$/.test(e.target.value)) {
-                        setLearningRate(parseFloat(e.target.value));
+                      if (/(?:0)?((?:\.\d+)|(?:\.))$/.test(e.target.value)) {
+                        setLearningRate(e.target.value);
                         if (textnnet) {
-                          textnnet.nnet.learningRate = e.target.value;
+                          textnnet.nnet.learningRate = parseFloat(e.target.value);
                         }
                       }
 
@@ -488,43 +547,24 @@ const GameScreen = () => {
                     label="Momentum (between 0 and 1"
                     helperText="Changes can break the game"
                     variant="outlined"
-                    defaultValue={momentum}
+                    value={momentum}
                     onChange={(e) => {
 
                       if (/^(0(\.\d+)?|1(\.0+)?)$/.test(e.target.value)) {
-                        setMomentum(parseFloat(e.target.value));
+                        setMomentum(e.target.value);
                         if (textnnet) {
-                          textnnet.nnet.momentum = e.target.value;
+                          textnnet.nnet.momentum = parseFloat(e.target.value);
                         }
                       }
                     }} />
                 </Box>
-                {/* <Typography id="non-linear-slider" gutterBottom>
-        Learning Rate
-      </Typography>
-  
-        <Slider
-          defaultValue={learningRate}
-          // getAriaValueText={}
-          valueLabelDisplay="auto"
-          onChange= {(e, value) => {
-            setLearningRate(parseFloat(value)); 
-            if (textnnet) {
-              textnnet.nnet.learningRate = value;
-            }
-          }}
-          step={0.000000001}
-          // marks
-          min={0}
-          max={1}
-        /> */}
                 <Typography id="non-linear-slider" gutterBottom>
                   Speed:
                 </Typography>
 
                 <Slider
                   aria-label="Speed"
-                  defaultValue={1}
+                  value={speed}
                   // getAriaValueText={}
                   valueLabelDisplay="auto"
                   onChange={(e, value) => {
@@ -555,7 +595,7 @@ const GameScreen = () => {
                     }} />
                   } label="Train with random valid guess if AI guesses disabled letter" />
                   {trainWithValidRandomGuess && (<><Typography id="non-linear-slider" gutterBottom>
-                    Maximum to train after invalid guess:
+                    Train {trainWithValidRandomGuess} time(s) after invalid guess:
                   </Typography>
 
                     <Slider
@@ -573,6 +613,32 @@ const GameScreen = () => {
                     />
                   </>)}
                 </>) : (<></>)}
+                
+                <br></br>
+                
+                <Button disabled={!running} variant="outlined" onClick={() => {
+                  setRunning(false);
+                  setWeightSet("exporting");
+                  setTimeout(() => {
+                    download("weightset.json", JSON.stringify({
+                      layers,
+                      learningRate,
+                      momentum,
+                      trainingMode,
+                      trainWithValidRandomGuess,
+                      endGameOnGuessWithDisabledLetter,
+                      numberOfPossibleAnswers,
+                      weights: textnnet.nnet.getWeights()
+                      
+                    }));
+                    setTimeout(() => {
+                      setRunning(true);
+                      setGuessList([]);
+                      setWeightSet("");
+
+                    }, speed * 2);
+                  }, speed * 2);
+                }}>Export Weight Set</Button>
               </CardContent>
             </Card>
             <Card>
@@ -843,4 +909,17 @@ function generateGameProgress(totalTurns: number, currentTurn: number) {
     turnsArray.push([currentTurn > turnsArray.length ? 0 : 1]);
   }
   return turnsArray;
+}
+
+function download(filename, text) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
 }
