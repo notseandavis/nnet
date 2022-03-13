@@ -123,7 +123,7 @@ const GameScreen = () => {
     const list: string[] = [];
 
   }, [guessList])
-  
+
   useEffect(() => {
     wordList = fiveLetterWords.slice(0, numberOfPossibleAnswers)
   }, [numberOfPossibleAnswers])
@@ -360,8 +360,6 @@ const GameScreen = () => {
           <Grid item md={6}>
 
             {(!running && weightSet !== "exporting") && <>
-
-
               <Card sx={{ minWidth: 275 }}>
                 <CardContent>
 
@@ -410,10 +408,10 @@ const GameScreen = () => {
                     min={1}
                     max={fiveLetterWords.length}
                   />
-                <FormControl sx={{
-                   m: 3, minWidth: 200 
-                   }}>
-                  <InputLabel id="demo-simple-select-label">Activation Function</InputLabel>
+                  <FormControl sx={{
+                    m: 3, minWidth: 200
+                  }}>
+                    <InputLabel id="demo-simple-select-label">Activation Function</InputLabel>
                     <Select
                       // labelId="demo-simple-select-label"
                       id="activation-function"
@@ -454,12 +452,12 @@ const GameScreen = () => {
 
                   }}>{running ? "Start AI" : "Start AI"}</Button>
 
-<label htmlFor="contained-button-file">
-                    <Input 
-                      sx={{display: "none" }} 
-                      accept=".json" 
-                      id="contained-button-file" 
-                      multiple type="file" 
+                  <label htmlFor="contained-button-file">
+                    <Input
+                      sx={{ display: "none" }}
+                      accept=".json"
+                      id="contained-button-file"
+                      multiple type="file"
                       onChange={(e) => {
                         const fileReader = new FileReader();
                         fileReader.readAsText(e.target.files[0], "UTF-8");
@@ -473,7 +471,7 @@ const GameScreen = () => {
                           setTrainWithValidRandomGuess(ws.trainWithValidRandomGuess);
                           setEndGameOnGuessWithDisabledLetter(ws.endGameOnGuessWithDisabledLetter);
                           setActivationFunction(ws.activationFunction);
-                          
+
                           textnnet = new TextNNet(
                             [[5]],
                             [
@@ -492,7 +490,7 @@ const GameScreen = () => {
                           setRunning(true);
                           setGuessList([]);
                         }
-                        
+
                         fileReader.onload = (e: Event) => {
                           if (e && e.target && e.target.result) {
                             console.log("e.target.result", e.target.result);
@@ -501,8 +499,8 @@ const GameScreen = () => {
                           }
                         }
                       }}
-                      />
-                    <Button variant="outlined" component="span" sx={{marginLeft: 1}}>
+                    />
+                    <Button variant="outlined" component="span" sx={{ marginLeft: 1 }}>
                       Import Weight Set
                     </Button>
                   </label>
@@ -510,7 +508,7 @@ const GameScreen = () => {
               </Card>
             </>
             }
-            <br></br>
+            <br />
             <Card sx={{ minWidth: 275 }}>
               <CardContent>
                 <Typography variant="h5">
@@ -613,9 +611,9 @@ const GameScreen = () => {
                     />
                   </>)}
                 </>) : (<></>)}
-                
+
                 <br></br>
-                
+
                 <Button disabled={!running} variant="outlined" onClick={() => {
                   setRunning(false);
                   setWeightSet("exporting");
@@ -629,7 +627,7 @@ const GameScreen = () => {
                       endGameOnGuessWithDisabledLetter,
                       numberOfPossibleAnswers,
                       weights: textnnet.nnet.getWeights()
-                      
+
                     }));
                     setTimeout(() => {
                       setRunning(true);
@@ -641,7 +639,8 @@ const GameScreen = () => {
                 }}>Export Weight Set</Button>
               </CardContent>
             </Card>
-            <Card>
+            <br />
+            <Card sx={{ minWidth: 275 }}>
               <CardContent>
                 <Typography variant="h5">
                   Info
