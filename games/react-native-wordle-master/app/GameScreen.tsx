@@ -41,6 +41,7 @@ const GameScreen = () => {
   const [running, setRunning] = useState<boolean>(false);
   // const [expectedResult, setExpectedResult] = useState<number[]>([]);
   const [trainingMode, setTrainingMode] = useState<boolean>(true);
+  const [autoTrain, setAutoTrain] = useState<boolean>(true);
   const [gamesPlayed, setGamesPlayed] = useState<number>(0);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
   const [turnsPlayed, setTurnsPlayed] = useState<number>(0);
@@ -54,17 +55,30 @@ const GameScreen = () => {
 
 
   const [gamesWon, setGamesWon] = useState<number>(0);
-  const [disabledLetters, setDisabledLetters] = useState<string[]>([]);
-
+  // const [disabledLetters, setDisabledLetters] = useState<string[]>([]);
+  // const [correctLetters, setCorrectLetters] = useState<string[]>([]);
+  // const [presentLetters, setPresentLetters] = useState<string[]>([]);
   const wordToGuess = useRef<string>('xxxxx');
-  const wordToGuessIndex = useRef<number>(0);
+  const wordToGuessIndex = useRef<number>(-1);
+  const correctLetters = useRef<string[]>(["", "", "", "", ""]);
+  const presentLetters = useRef<string[]>([]);
+  const disabledLetters = useRef<string[]>([]);
 
   useEffect(() => {
     if (gameOver === false) {
-      const newWord = getRandomWord(wordList);
-      wordToGuess.current = newWord.word;
-      wordToGuessIndex.current = newWord.index
-      setCurrentWordIndex(newWord.index);
+      if (wordToGuessIndex.current > wordList.length - 2) {
+        wordToGuessIndex.current = 0;
+      } else {
+        wordToGuessIndex.current++;
+      }
+      wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
+      
+
+      // const newWord = getRandomWord(wordList);
+      // wordToGuess.current = newWord.word;
+      // wordToGuessIndex.current = newWord.index
+
+      setCurrentWordIndex(wordToGuessIndex.current);
       // setExpectedResult(getExpectedOutput(disabledLetters, wordList, wordList.length, newWord.index));
       setInputWord('');
       setGuessList([]);
@@ -86,12 +100,17 @@ const GameScreen = () => {
 
   useEffect(() => {
     const guessLen = guessList.length;
+
+
+    let { disabledLettersList, correctLettersList, presentLettersList } = getPresentIncludedCorrectLetters(guessList, wordToGuess.current)
+
     if (guessList[guessLen - 1] === wordToGuess.current) {
       if (trainingMode) {
         // trainingList.forEach((trainingData => {
         //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
         // }));
-        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
+        const previousWeights = textnnet.getWeights();
+        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
         setnnError(textnnet.nnet.globalError);
 
       }
@@ -100,24 +119,19 @@ const GameScreen = () => {
 
     } else if (guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
       if (trainingMode && textnnet) {
-        textnnet.train(null, null, null, getExpectedOutput(disabledLetters, wordList, wordList.length, wordToGuessIndex.current));
+        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
         setnnError(textnnet.nnet.globalError);
       }
       setTrainingList([]);
       setGameOver(true);
     } else {
-      const list: string[] = [];
-
-      guessList.forEach(word => {
-        word.split('').forEach(letter => {
-          // console.log({letter});
-          if (!wordToGuess.current.includes(letter)) {
-            list.push(letter);
-          }
-        });
-      });
-
-      setDisabledLetters(list);
+      disabledLetters.current = disabledLettersList;
+      correctLetters.current = correctLettersList;
+      presentLetters.current = presentLettersList;
+      setTurnsPlayed(turnsPlayed + 1);
+      setTimeout(() => {
+        runNNet(wordToGuess.current, guessList, disabledLetters.current, wordList, presentLetters.current, correctLetters.current);
+      }, speed)
     }
 
     const list: string[] = [];
@@ -128,14 +142,14 @@ const GameScreen = () => {
     wordList = fiveLetterWords.slice(0, numberOfPossibleAnswers)
   }, [numberOfPossibleAnswers])
 
-  useEffect(() => {
-    // fire the next turn when disabled letters are reset
-    setTurnsPlayed(turnsPlayed + 1);
-    setTimeout(() => {
-      runNNet(wordToGuess.current, guessList, disabledLetters, wordList);
-    }, speed)
-    // window.postMessage('start nnet');
-  }, [disabledLetters])
+  // useEffect(() => {
+  //   // fire the next turn when disabled letters are reset
+  //   setTurnsPlayed(turnsPlayed + 1);
+  //   setTimeout(() => {
+  //     runNNet(wordToGuess.current, guessList, disabledLetters.current, wordList, presentLetters.current, correctLetters.current);
+  //   }, speed)
+  //   // window.postMessage('start nnet');
+  // }, [disabledLetters])
 
   // useEffect(() => {
   // }, [turnsPlayed]);
@@ -160,7 +174,7 @@ const GameScreen = () => {
     [disabledLetters, inputWord],
   );
 
-  const runNNet = (cw: string, gl: string[], dl: string[], flw: string[]) => {
+  const runNNet = (cw: string, gl: string[], dl: string[], flw: string[], pl: string[], cl: string[]) => {
     if (!running || !textnnet) {
       return;
     }
@@ -192,7 +206,7 @@ const GameScreen = () => {
       }
 
     }
-    let presentLetters: string[][] = [];
+    // let presentLetters: string[][] = [];
 
 
     gl.forEach((guess: string, i) => {
@@ -261,7 +275,7 @@ const GameScreen = () => {
 
           setRandomGuess(newRandomWord);
 
-          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, -1);
+          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, -1, correctLetters, presentLetters);
           textnnet.train(null, null, null, aDifferentResult);
           setnnError(textnnet.nnet.globalError);
           let newGuessRawOutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
@@ -294,7 +308,7 @@ const GameScreen = () => {
 
   const callback = (event: MessageEvent) => {
     if (event.data == 'start nnet') {
-      runNNet(wordToGuess.current, guessList, disabledLetters, wordList);
+      runNNet(wordToGuess.current, guessList, disabledLetters.current, wordList, correctLetters.current, presentLetters.current);
     }
   };
 
@@ -348,6 +362,18 @@ const GameScreen = () => {
     {
       name: "Neural Net Error",
       value: nnError.toFixed(5)
+    },
+    {
+      name: "Disabled Letters",
+      value: disabledLetters.current
+    },
+    {
+      name: "Present Letters",
+      value: presentLetters.current
+    },
+    {
+      name: "Correct Letters",
+      value: correctLetters.current
     }
   ];
 
@@ -521,6 +547,12 @@ const GameScreen = () => {
                 </Typography>
                 <Divider></Divider>
                 
+
+                {/* <FormControlLabel control={
+                  <Switch onChange={(e, value) => {
+                    setAutoTrain(value)
+                  }} />
+                } label="Auto-train" /> */}
 
                 <FormControlLabel control={
                   <Switch onChange={(e, value) => {
@@ -725,7 +757,7 @@ const GameScreen = () => {
             <View style={styles.bottomContainer}>
               <Keyboard
                 disabledKeyList={[
-                  ...disabledLetters,
+                  ...disabledLetters.current,
                   inputWord.length !== MAX_WORD_LEN
                     ? SpecialKeyboardKeys.GUESS
                     : '',
@@ -892,12 +924,56 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
   });
   return { index: currentBestGuessOfIndex, certainty: highestProbability };
 }
-function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number) {
+function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[]) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(activeResultIndex === i ? 1 : (includesDisabledLetter(disabledLetters, wordList[i].toUpperCase()) ? .01 : .7));
+    expectedResult.push(getExpectedOutputForAnswer(wordList[activeResultIndex], wordList[i], disabledLetters, correctLetters, presentLetters));
   }
   return expectedResult;
+}
+
+function wordHasCorrectLettersInPlace(word: string, correctLetters: string[]) {
+  let wordHasCorrectLettersInCorrectPlace = true;
+  let i = 0
+  while (i < correctLetters.length) {
+    if (correctLetters[i] !== "") {
+      if (word[i] !== correctLetters[i]) {
+        wordHasCorrectLettersInCorrectPlace = false;
+        break;
+      }
+    }
+    i++;
+  }
+  return wordHasCorrectLettersInCorrectPlace;
+}
+
+function wordContainsPresentLetters(word:string, presentLetters: string[]) {
+  let wordContainsPresentLetters = true;
+  let i = 0;
+  while (i < presentLetters.length) {
+    if (!word.includes(presentLetters[i])) {
+      wordContainsPresentLetters = false;
+      break;
+    }
+    i++;
+  } 
+  return  wordContainsPresentLetters
+}
+
+function getExpectedOutputForAnswer(correctWord: string, word: string, disabledLetters: string[], correctLetters: string[], presentLetters: string[]) {
+  const isCorrectWord = correctWord === word;
+  const wordIncludesDisabledLetter = includesDisabledLetter(disabledLetters, word);
+  
+  let hasCorrectLettersInCorrectPlace = wordHasCorrectLettersInPlace(word, correctLetters);
+  let containsPresentLetters = wordContainsPresentLetters(word, presentLetters);
+
+  if (isCorrectWord) {
+    return .8;
+  } else if (!wordIncludesDisabledLetter && hasCorrectLettersInCorrectPlace && containsPresentLetters) {
+    return .8;
+  } else {
+    return 0.1;
+  }
 }
 
 function randomInteger(min: number, max: number) {
@@ -917,6 +993,30 @@ function includesDisabledLetter(disabledLetters: string[], word: string) {
     stringArray.splice(0, 1);
   }
   return false;
+}
+
+function getPresentIncludedCorrectLetters(gl: string[], cw: string) {
+  const disabledLettersList: string[] = [];
+  const correctLettersList: string[] = ["", "", "", "", ""]
+  const presentLettersList: string[] = [];
+  gl.forEach(word => {
+    word.split('').forEach((letter, i) => {
+      // console.log({letter});
+      if (!cw.includes(letter)) {
+        if (!disabledLettersList.includes(letter)) {
+          disabledLettersList.push(letter);
+        }
+      } else {
+        if (cw[i] === letter) {
+          correctLettersList[i] = letter;
+        }
+        if (!presentLettersList.includes(letter)) {
+          presentLettersList.push(letter);
+        }
+      }
+    });
+  });
+  return { disabledLettersList, correctLettersList, presentLettersList }
 }
 
 function generateGameProgress(totalTurns: number, currentTurn: number) {
