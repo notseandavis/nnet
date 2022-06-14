@@ -31,6 +31,7 @@ const GameScreen = () => {
   const [layers, setLayers] = useState<number>(0);
   const [learningRate, setLearningRate] = useState<string>("0.005");
   const [momentum, setMomentum] = useState<string>("0.001");
+  const [autoTrainStatus, setAutoTrainStatus] = useState<string>("Off");
   const [nnGuess, setNnGuess] = useState<string>('');
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
   const [randomGuess, setRandomGuess] = useState<string>('');
@@ -63,6 +64,16 @@ const GameScreen = () => {
   const correctLetters = useRef<string[]>(["", "", "", "", ""]);
   const presentLetters = useRef<string[]>([]);
   const disabledLetters = useRef<string[]>([]);
+  const nnErrorAfterTraining = useRef<number>(0);
+  const nnErrorBeforeTraining = useRef<number>(0);
+  const autoTrainTotalIterations = useRef<number>(-1);
+  const autoTrainIterations = useRef<number>(0);
+  const autoTrainCurrentIteration = useRef<number>(0);
+  const autoTrainStep = useRef<number>(0);
+  const autoTrainTesting = useRef<boolean>(false);
+  const preTrainingWeights = useRef<[]>([]);
+  const autoTrainStartingLearningRate = useRef<string>('0.0005');
+  const autoTrainStartingMomentum = useRef<string>('0.0001');
 
   useEffect(() => {
     if (gameOver === false) {
@@ -97,6 +108,86 @@ const GameScreen = () => {
     }
   }, [gameOver]);
 
+  const trainAtEndOfGame = (disabledLettersList: string[], correctLettersList: string[], presentLettersList: string[]) => {
+    if (autoTrain) {
+      autoTrainTotalIterations.current++;
+      if (autoTrainTotalIterations.current < numberOfPossibleAnswers) {
+        setEndGameOnGuessWithDisabledLetter(true);
+        setAutoTrainStatus("Training on all words")
+        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+        setnnError(textnnet.nnet.globalError);
+      } else {
+        
+        if (autoTrainTotalIterations)
+        
+        // Test
+        if (autoTrainStep.current === 0) {
+          if (autoTrainCurrentIteration.current == 0) {
+            preTrainingWeights.current = textnnet.getWeights();
+          }
+          setEndGameOnGuessWithDisabledLetter(false);
+          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+            let oldWeights = textnnet.getWeights();
+            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+            setnnError(textnnet.nnet.globalError);
+            nnErrorBeforeTraining.current = nnErrorBeforeTraining.current + Math.abs(textnnet.nnet.globalError);
+            textnnet.setWeights(oldWeights);
+            autoTrainCurrentIteration.current++;
+          } else {
+            autoTrainCurrentIteration.current = 0;
+            autoTrainStep.current++;
+            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+          }
+
+
+        // Train
+        } else if (autoTrainStep.current === 1) {
+          setEndGameOnGuessWithDisabledLetter(true);
+
+          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+            setnnError(textnnet.nnet.globalError);
+            autoTrainCurrentIteration.current++;
+          } else {
+            autoTrainCurrentIteration.current = 0;
+            autoTrainStep.current++;
+            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+          }
+        
+
+        // Retest
+        } else if (autoTrainStep.current === 2) {
+          setEndGameOnGuessWithDisabledLetter(false);
+          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+            let oldWeights = textnnet.getWeights();
+            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+            setnnError(textnnet.nnet.globalError);
+            nnErrorAfterTraining.current = nnErrorAfterTraining.current + Math.abs(textnnet.nnet.globalError);
+            textnnet.setWeights(oldWeights);
+            autoTrainCurrentIteration.current++;
+          } else {
+            autoTrainCurrentIteration.current = 0;
+            autoTrainStep.current++;
+            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+          }
+
+        // Evaluate
+        } else {
+          if (nnErrorBeforeTraining.current < nnErrorAfterTraining.current) {
+            textnnet.setWeights(preTrainingWeights.current);
+          }
+          nnErrorBeforeTraining.current = 0;
+          nnErrorAfterTraining.current = 0;
+          autoTrainCurrentIteration.current = 0;
+          autoTrainIterations.current = randomInteger(0, 20);
+          autoTrainStep.current = 0;
+        }
+      }
+    } else if (trainingMode) {
+      textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+      setnnError(textnnet.nnet.globalError);
+    }
+  }
 
   useEffect(() => {
     const guessLen = guessList.length;
@@ -104,24 +195,8 @@ const GameScreen = () => {
 
     let { disabledLettersList, correctLettersList, presentLettersList } = getPresentIncludedCorrectLetters(guessList, wordToGuess.current)
 
-    if (guessList[guessLen - 1] === wordToGuess.current) {
-      if (trainingMode) {
-        // trainingList.forEach((trainingData => {
-        //   textnnet.train(trainingData[0], trainingData[1], null, expectedResult);
-        // }));
-        const previousWeights = textnnet.getWeights();
-        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-        setnnError(textnnet.nnet.globalError);
-
-      }
-      setTrainingList([]);
-      setGameOver(true);
-
-    } else if (guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
-      if (trainingMode && textnnet) {
-        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-        setnnError(textnnet.nnet.globalError);
-      }
+    if ((guessList[guessLen - 1] === wordToGuess.current) || guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
+      trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
       setTrainingList([]);
       setGameOver(true);
     } else {
@@ -323,6 +398,26 @@ const GameScreen = () => {
   }, [gameOver, guessList]);
   const scores = scoreList.slice(0, 10);
   const rows = [
+    {
+      name: "Autotrain Iterations",
+      value: autoTrainIterations.current
+    },
+    {
+      name: "Autotrain Step",
+      value: autoTrainStep.current
+    },
+    {
+      name: "Autotrain Current Iteration",
+      value: autoTrainCurrentIteration.current
+    },
+    {
+      name: "Pre-training Error",
+      value: nnErrorBeforeTraining.current
+    },
+    {
+      name: "Post-training Error",
+      value: nnErrorAfterTraining.current
+    },
     {
       name: "Possible Answers",
       value: numberOfPossibleAnswers
@@ -548,14 +643,20 @@ const GameScreen = () => {
                 <Divider></Divider>
                 
 
-                {/* <FormControlLabel control={
-                  <Switch onChange={(e, value) => {
+                <FormControlLabel control={
+                  <Switch 
+                  
+                  checked={autoTrain}
+                  onChange={(e, value) => {
                     setAutoTrain(value)
                   }} />
-                } label="Auto-train" /> */}
-
+                } label="Auto-train" />
+                <br/>
                 <FormControlLabel control={
-                  <Switch onChange={(e, value) => {
+                  <Switch
+                  disabled={autoTrain}
+                  checked={endGameOnGuessWithDisabledLetter}
+                  onChange={(e, value) => {
                     setEndGameOnGuessWithDisabledLetter(value)
                     if (value === false) {
                       setTrainWithValidRandomGuess(false);
@@ -571,6 +672,7 @@ const GameScreen = () => {
                   Speed (ms):
                 </Typography>
                 <Slider
+                  disabled={autoTrain}
                   aria-label="Speed"
                   value={speed}
                   // getAriaValueText={}
@@ -591,13 +693,19 @@ const GameScreen = () => {
                 <Divider></Divider>
                 <br/>
                 <FormControlLabel control={
-                  <Switch defaultChecked onChange={(e, value) => {
+                  <Switch 
+                  disabled={autoTrain}
+                  checked={trainingMode}
+                  onChange={(e, value) => {
                     setTrainingMode(value);
                   }} />
                 } label="Train with correct word after game" />
                 {!endGameOnGuessWithDisabledLetter ? (<>
                   <FormControlLabel control={
-                    <Switch onChange={(e, value) => {
+                    <Switch 
+                    disabled={autoTrain}
+                    checked={trainWithValidRandomGuess}
+                    onChange={(e, value) => {
                       setTrainWithValidRandomGuess(value)
                     }} />
                   } label="Train with random valid guess if AI guesses disabled letter" />
@@ -628,6 +736,7 @@ const GameScreen = () => {
                   autoComplete="off"
                 >
                   <TextField
+                    disabled={autoTrain}
                     id="outlined-basic"
                     margin="normal"
                     label="Learning Rate (between 0 and 1)"
@@ -644,6 +753,7 @@ const GameScreen = () => {
 
                     }} />
                   <TextField
+                    disabled={autoTrain}
                     label="Momentum (between 0 and 1"
                     id="outlined-basic"
                     margin="normal"
