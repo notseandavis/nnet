@@ -77,17 +77,17 @@ const GameScreen = () => {
 
   useEffect(() => {
     if (gameOver === false) {
-      if (wordToGuessIndex.current > wordList.length - 2) {
-        wordToGuessIndex.current = 0;
-      } else {
-        wordToGuessIndex.current++;
-      }
-      wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
+      // if (wordToGuessIndex.current > wordList.length - 2) {
+      //   wordToGuessIndex.current = 0;
+      // } else {
+      //   wordToGuessIndex.current++;
+      // }
+      // wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
       
 
-      // const newWord = getRandomWord(wordList);
-      // wordToGuess.current = newWord.word;
-      // wordToGuessIndex.current = newWord.index
+      const newWord = getRandomWord(wordList);
+      wordToGuess.current = newWord.word;
+      wordToGuessIndex.current = newWord.index
 
       setCurrentWordIndex(wordToGuessIndex.current);
       // setExpectedResult(getExpectedOutput(disabledLetters, wordList, wordList.length, newWord.index));
@@ -109,80 +109,88 @@ const GameScreen = () => {
   }, [gameOver]);
 
   const trainAtEndOfGame = (disabledLettersList: string[], correctLettersList: string[], presentLettersList: string[]) => {
+
+
+    
     if (autoTrain) {
       autoTrainTotalIterations.current++;
-      if (autoTrainTotalIterations.current < numberOfPossibleAnswers) {
-        setEndGameOnGuessWithDisabledLetter(true);
-        setAutoTrainStatus("Training on all words")
-        textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-        setnnError(textnnet.nnet.globalError);
-      } else {
+      // if (autoTrainTotalIterations.current < numberOfPossibleAnswers) {
+      //   setEndGameOnGuessWithDisabledLetter(true);
+      //   setAutoTrainStatus("Training on all words")
+      //   textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+      //   setnnError(textnnet.nnet.globalError);
+      // } else {
         
-        if (autoTrainTotalIterations)
+        // if (autoTrainTotalIterations)
         
         // Test
-        if (autoTrainStep.current === 0) {
-          if (autoTrainCurrentIteration.current == 0) {
-            preTrainingWeights.current = textnnet.getWeights();
-          }
-          setEndGameOnGuessWithDisabledLetter(false);
-          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-            let oldWeights = textnnet.getWeights();
-            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-            setnnError(textnnet.nnet.globalError);
-            nnErrorBeforeTraining.current = nnErrorBeforeTraining.current + Math.abs(textnnet.nnet.globalError);
-            textnnet.setWeights(oldWeights);
-            autoTrainCurrentIteration.current++;
-          } else {
-            autoTrainCurrentIteration.current = 0;
-            autoTrainStep.current++;
-            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-          }
-
-
-        // Train
-        } else if (autoTrainStep.current === 1) {
-          setEndGameOnGuessWithDisabledLetter(true);
-
-          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-            setnnError(textnnet.nnet.globalError);
-            autoTrainCurrentIteration.current++;
-          } else {
-            autoTrainCurrentIteration.current = 0;
-            autoTrainStep.current++;
-            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-          }
-        
-
-        // Retest
-        } else if (autoTrainStep.current === 2) {
-          setEndGameOnGuessWithDisabledLetter(false);
-          if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-            let oldWeights = textnnet.getWeights();
-            textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-            setnnError(textnnet.nnet.globalError);
-            nnErrorAfterTraining.current = nnErrorAfterTraining.current + Math.abs(textnnet.nnet.globalError);
-            textnnet.setWeights(oldWeights);
-            autoTrainCurrentIteration.current++;
-          } else {
-            autoTrainCurrentIteration.current = 0;
-            autoTrainStep.current++;
-            return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-          }
-
-        // Evaluate
-        } else {
-          if (nnErrorBeforeTraining.current < nnErrorAfterTraining.current) {
-            textnnet.setWeights(preTrainingWeights.current);
-          }
-          nnErrorBeforeTraining.current = 0;
-          nnErrorAfterTraining.current = 0;
-          autoTrainCurrentIteration.current = 0;
-          autoTrainIterations.current = randomInteger(0, 20);
-          autoTrainStep.current = 0;
+      if (autoTrainStep.current === 0) {
+        setAutoTrainStatus("Testing before training...")
+        if (autoTrainCurrentIteration.current == 0) {
+          preTrainingWeights.current = textnnet.getWeights();
         }
+        setEndGameOnGuessWithDisabledLetter(false);
+        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+          let oldWeights = textnnet.getWeights();
+          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+          setnnError(textnnet.nnet.globalError);
+          nnErrorBeforeTraining.current = nnErrorBeforeTraining.current + Math.abs(textnnet.nnet.globalError);
+          textnnet.setWeights(oldWeights);
+          autoTrainCurrentIteration.current++;
+        } else {
+          autoTrainCurrentIteration.current = 0;
+          autoTrainStep.current++;
+          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+        }
+
+
+      // Train
+      } else if (autoTrainStep.current === 1) {
+        setAutoTrainStatus("Training...")
+
+        setEndGameOnGuessWithDisabledLetter(true);
+        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+          setnnError(textnnet.nnet.globalError);
+          autoTrainCurrentIteration.current++;
+        } else {
+          autoTrainCurrentIteration.current = 0;
+          autoTrainStep.current++;
+          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+        }
+      
+
+      // Retest
+      } else if (autoTrainStep.current === 2) {
+        setAutoTrainStatus("Testing after training...")
+
+        setEndGameOnGuessWithDisabledLetter(false);
+        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
+          let oldWeights = textnnet.getWeights();
+          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+          setnnError(textnnet.nnet.globalError);
+          nnErrorAfterTraining.current = nnErrorAfterTraining.current + Math.abs(textnnet.nnet.globalError);
+          textnnet.setWeights(oldWeights);
+          autoTrainCurrentIteration.current++;
+        } else {
+          autoTrainCurrentIteration.current = 0;
+          autoTrainStep.current++;
+          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
+        }
+
+      // Evaluate
+      } else {
+        if (nnErrorBeforeTraining.current < nnErrorAfterTraining.current) {
+          setAutoTrainStatus("Testing after training...")
+          textnnet.setWeights(preTrainingWeights.current);
+        }
+        nnErrorBeforeTraining.current = 0;
+        nnErrorAfterTraining.current = 0;
+        autoTrainCurrentIteration.current = 0;
+        autoTrainIterations.current = randomInteger(0, 20);
+        autoTrainStep.current = 0;
       }
+      // }
     } else if (trainingMode) {
       textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
       setnnError(textnnet.nnet.globalError);
@@ -398,6 +406,10 @@ const GameScreen = () => {
   }, [gameOver, guessList]);
   const scores = scoreList.slice(0, 10);
   const rows = [
+    {
+      name: "Autotrain Status",
+      value: autoTrainStatus
+    },
     {
       name: "Autotrain Iterations",
       value: autoTrainIterations.current
