@@ -24,7 +24,10 @@ const GameScreen = () => {
   const [activationFunction, setActivationFunction] = useState<string>('sigmoid');
   const [certainty, setCertainty] = useState<number>(0);
   const [answerCertainty, setAnswerCertainty] = useState<number>(0);
-  const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(Math.floor(fiveLetterWords.length / 2));
+  const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(200);
+  const [certaintyOfCorrectAnswerForTraining, setCertaintyOfCorrectAnswerForTraining] = useState<number>(0.8);
+  const [certaintyOfValidAnswersForTraining, setCertaintyOfValidAnswersForTraining] = useState<number>(0.8);
+  const [certaintyOfInvalidAnswersForTraining, setCertaintyOfInvalidAnswersForTraining] = useState<number>(0.8);
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
   const [speed, setSpeed] = useState<number>(0);
@@ -36,7 +39,7 @@ const GameScreen = () => {
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
   const [randomGuess, setRandomGuess] = useState<string>('');
   const [gameOver, setGameOver] = useState<boolean>(false);
-  const [endGameOnGuessWithDisabledLetter, setEndGameOnGuessWithDisabledLetter] = useState<boolean>(false);
+  const [endGameOnGuessWithDisabledLetter, setEndGameOnGuessWithDisabledLetter] = useState<boolean>(true);
   const [hardMode, setHardMode] = useState<boolean>(false);
   const [trainWithValidRandomGuess, setTrainWithValidRandomGuess] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
@@ -52,6 +55,8 @@ const GameScreen = () => {
   const [trainingList, setTrainingList] = useState<(number[][] | string[][])[]>([]);
   const [scoreList, setScoreList] = useState<[number, string][]>([]);
   const [scoreHistory, setScoreHistory] = useState<[number, number, number][]>([[0, 0, 0]]);
+  const [showGameBoard, setShowGameBoard] = useState<boolean>(true);
+  const [showStatistics, setShowStatistics] = useState<boolean>(true);
 
 
 
@@ -64,30 +69,26 @@ const GameScreen = () => {
   const correctLetters = useRef<string[]>(["", "", "", "", ""]);
   const presentLetters = useRef<string[]>([]);
   const disabledLetters = useRef<string[]>([]);
-  const nnErrorAfterTraining = useRef<number>(0);
-  const nnErrorBeforeTraining = useRef<number>(0);
-  const autoTrainTotalIterations = useRef<number>(-1);
-  const autoTrainIterations = useRef<number>(0);
-  const autoTrainCurrentIteration = useRef<number>(0);
+  const autoTrainEpoch = useRef<number>(0);
   const autoTrainStep = useRef<number>(0);
-  const autoTrainTesting = useRef<boolean>(false);
-  const preTrainingWeights = useRef<[]>([]);
-  const autoTrainStartingLearningRate = useRef<string>('0.0005');
-  const autoTrainStartingMomentum = useRef<string>('0.0001');
+  const autoTrainAverageNumberOfGuesses = useRef<number>(0);
+  const autoTrainPreviousAverageNumberOfGuesses = useRef<number>(0);
+  const autoTranPreviousWinRatio = useRef<number>(0);
+  const autoTrainOldestNumberOfGuesses = useRef<number>(0);
 
   useEffect(() => {
     if (gameOver === false) {
-      // if (wordToGuessIndex.current > wordList.length - 2) {
-      //   wordToGuessIndex.current = 0;
-      // } else {
-      //   wordToGuessIndex.current++;
-      // }
-      // wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
+      if (wordToGuessIndex.current > wordList.length - 2) {
+        wordToGuessIndex.current = 0;
+      } else {
+        wordToGuessIndex.current++;
+      }
+      wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
       
 
-      const newWord = getRandomWord(wordList);
-      wordToGuess.current = newWord.word;
-      wordToGuessIndex.current = newWord.index
+      // const newWord = getRandomWord(wordList);
+      // wordToGuess.current = newWord.word;
+      // wordToGuessIndex.current = newWord.index
 
       setCurrentWordIndex(wordToGuessIndex.current);
       // setExpectedResult(getExpectedOutput(disabledLetters, wordList, wordList.length, newWord.index));
@@ -111,88 +112,94 @@ const GameScreen = () => {
   const trainAtEndOfGame = (disabledLettersList: string[], correctLettersList: string[], presentLettersList: string[]) => {
 
 
-    
     if (autoTrain) {
-      autoTrainTotalIterations.current++;
-      // if (autoTrainTotalIterations.current < numberOfPossibleAnswers) {
-      //   setEndGameOnGuessWithDisabledLetter(true);
-      //   setAutoTrainStatus("Training on all words")
-      //   textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-      //   setnnError(textnnet.nnet.globalError);
+      let lr = parseFloat(learningRate)
+      let m = parseFloat(momentum)
+      // turn off when training is done
+      if (m < 0.00000000005 || lr < 0.00000000001) {
+        setAutoTrain(false)
+        setTrainingMode(false)
+        setEndGameOnGuessWithDisabledLetter(false)
+      }
+
+      autoTrainStep.current++;
+
+      autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current + guessList.length;
+
+      if (autoTrainStep.current > numberOfPossibleAnswers) {
+        // setEndGameOnGuessWithDisabledLetter(!endGameOnGuessWithDisabledLetter)
+        autoTrainEpoch.current++;
+        autoTrainStep.current = 0;
+        let newWinRatio = (gamesWon / gamesPlayed);
+
+        if (newWinRatio > autoTranPreviousWinRatio.current) {
+            textnnet.nnet.momentum = ((m * 0.75).toString());
+            setMomentum((textnnet.nnet.momentum).toString())
+            textnnet.nnet.learningRate = (lr * 0.7).toString();
+            setLearningRate((textnnet.nnet.learningRate).toString())
+        } else if (newWinRatio < autoTranPreviousWinRatio.current) {
+          let newM = m * 1.2;
+          if (newM < 0.001) {
+            textnnet.nnet.momentum = ((newM).toString());
+            setMomentum((newM).toString())
+          }
+          let newLR = lr * 1.2;
+          if (newLR < 0.005) {
+            textnnet.nnet.learningRate = (newLR).toString();
+            setLearningRate((newLR).toString())
+          }
+        } else {
+          // do nothing
+        }
+
+        autoTranPreviousWinRatio.current =(gamesWon / gamesPlayed);
+      }
+      
+      textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList, guessList));
+      setnnError(textnnet.nnet.globalError);
+
+      // autoTrainTotalIterations.current++;
+      // let averageError = 0;
+      // if (autoTrainTotalIterations.current <= 20) {
+      //   averageError = autoTrainErrorTotal.current / autoTrainTotalIterations.current
       // } else {
-        
-        // if (autoTrainTotalIterations)
-        
-        // Test
-      if (autoTrainStep.current === 0) {
-        setAutoTrainStatus("Testing before training...")
-        if (autoTrainCurrentIteration.current == 0) {
-          preTrainingWeights.current = textnnet.getWeights();
-        }
-        setEndGameOnGuessWithDisabledLetter(false);
-        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-          let oldWeights = textnnet.getWeights();
-          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-          setnnError(textnnet.nnet.globalError);
-          nnErrorBeforeTraining.current = nnErrorBeforeTraining.current + Math.abs(textnnet.nnet.globalError);
-          textnnet.setWeights(oldWeights);
-          autoTrainCurrentIteration.current++;
-        } else {
-          autoTrainCurrentIteration.current = 0;
-          autoTrainStep.current++;
-          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-        }
+      //   autoTrainErrorTotal.current = autoTrainErrorTotal.current - autoTrainOldestError.current;
+      //   averageError = autoTrainErrorTotal.current / 20;
+      // }
 
-
-      // Train
-      } else if (autoTrainStep.current === 1) {
-        setAutoTrainStatus("Training...")
-
-        setEndGameOnGuessWithDisabledLetter(true);
-        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-          setnnError(textnnet.nnet.globalError);
-          autoTrainCurrentIteration.current++;
-        } else {
-          autoTrainCurrentIteration.current = 0;
-          autoTrainStep.current++;
-          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-        }
+      
       
 
-      // Retest
-      } else if (autoTrainStep.current === 2) {
-        setAutoTrainStatus("Testing after training...")
 
-        setEndGameOnGuessWithDisabledLetter(false);
-        if (autoTrainCurrentIteration.current < autoTrainIterations.current) {
-          let oldWeights = textnnet.getWeights();
-          textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
-          setnnError(textnnet.nnet.globalError);
-          nnErrorAfterTraining.current = nnErrorAfterTraining.current + Math.abs(textnnet.nnet.globalError);
-          textnnet.setWeights(oldWeights);
-          autoTrainCurrentIteration.current++;
-        } else {
-          autoTrainCurrentIteration.current = 0;
-          autoTrainStep.current++;
-          return trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
-        }
-
-      // Evaluate
-      } else {
-        if (nnErrorBeforeTraining.current < nnErrorAfterTraining.current) {
-          setAutoTrainStatus("Testing after training...")
-          textnnet.setWeights(preTrainingWeights.current);
-        }
-        nnErrorBeforeTraining.current = 0;
-        nnErrorAfterTraining.current = 0;
-        autoTrainCurrentIteration.current = 0;
-        autoTrainIterations.current = randomInteger(0, 20);
-        autoTrainStep.current = 0;
-      }
+      // let latestError = Math.abs(textnnet.nnet.globalError)
+      // autoTrainErrorTotal.current = autoTrainErrorTotal.current + latestError
+      // autoTrainOldestError.current = latestError;
+      // let oldWeights = textnnet.getWeights();
+      // if (averageError > latestError * 100) {
+      //   textnnet.setWeights(oldWeights);
       // }
+
+
+
+
+      // if (autoTrainStep.current === 20) {
+
+
+
+      // //   autoTrainStep.current = 0;
+      // if (autoTrainPreviousAverageError.current > averageError) {
+      //   setMomentum((parseFloat(momentum) * 0.99999).toString())
+      //   textnnet.nnet.momentum = ((parseFloat(momentum) * 0.99999).toString());
+
+      // } else {
+      //   textnnet.nnet.learningRate = (parseFloat(learningRate) * 0.99999).toString();
+      //   setLearningRate((parseFloat(learningRate) * 0.99999).toString())
+      // }
+      // autoTrainPreviousAverageError.current = averageError;
+      // }
+      
     } else if (trainingMode) {
-      textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList));
+      textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList, guessList));
       setnnError(textnnet.nnet.globalError);
     }
   }
@@ -335,7 +342,7 @@ const GameScreen = () => {
     let turnPlayedByAi = true;
     let invalid: string = "";
 
-    if (includesDisabledLetter(dl, nnBestGuess) && (endGameOnGuessWithDisabledLetter || trainWithValidRandomGuess)) {
+    if ((guessList.includes(nnBestGuess) || includesDisabledLetter(dl, nnBestGuess)) && (endGameOnGuessWithDisabledLetter || trainWithValidRandomGuess)) {
       invalid = "(invalid)";
       // If the very best guess is not valid, do some stuff
       if (endGameOnGuessWithDisabledLetter) {
@@ -358,7 +365,7 @@ const GameScreen = () => {
 
           setRandomGuess(newRandomWord);
 
-          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, -1, correctLetters, presentLetters);
+          let aDifferentResult = getExpectedOutput(dl, flw, flw.length, -1, correctLetters, presentLetters, guessList);
           textnnet.train(null, null, null, aDifferentResult);
           setnnError(textnnet.nnet.globalError);
           let newGuessRawOutput = textnnet.fire(input[0], input[1]).nonTextOutputs;
@@ -404,52 +411,11 @@ const GameScreen = () => {
 
     return getWordleEmoji(wordToGuess.current, guessList);
   }, [gameOver, guessList]);
-  const scores = scoreList.slice(0, 10);
-  const rows = [
-    {
-      name: "Autotrain Status",
-      value: autoTrainStatus
-    },
-    {
-      name: "Autotrain Iterations",
-      value: autoTrainIterations.current
-    },
-    {
-      name: "Autotrain Step",
-      value: autoTrainStep.current
-    },
-    {
-      name: "Autotrain Current Iteration",
-      value: autoTrainCurrentIteration.current
-    },
-    {
-      name: "Pre-training Error",
-      value: nnErrorBeforeTraining.current
-    },
-    {
-      name: "Post-training Error",
-      value: nnErrorAfterTraining.current
-    },
+  const game = [
     {
       name: "Possible Answers",
       value: numberOfPossibleAnswers
     },
-    {
-      name: "Best Guess",
-      value: nnGuess
-    },
-    {
-      name: "Best Guess Certainty",
-      value: certainty.toFixed(5)
-    },
-    {
-      name: "Answer",
-      value: wordToGuess.current
-    },
-    // {
-    //   name: "Score of answer",
-    //   value: scoreHistory[scoreHistory.length - 1]?
-    // },
     {
       name: "Turns Played",
       value: turnsPlayed
@@ -464,11 +430,35 @@ const GameScreen = () => {
     },
     {
       name: "Win Ratio",
-      value: (Math.floor((gamesWon / gamesPlayed) * 100) / 100).toFixed(5)
+      value: (gamesWon / gamesPlayed).toFixed(5)
+    }
+  ];
+  const round = [
+    {
+      name: "Best Guess",
+      value: nnGuess
+    },
+    {
+      name: "Correct Answer",
+      value: wordToGuess.current
+    },
+    {
+      name: "Correct Answer Certainty",
+      value: answerCertainty.toFixed(5)
+    },
+    {
+      name: "Best Guess Certainty",
+      value: certainty.toFixed(5)
     },
     {
       name: "Neural Net Error",
       value: nnError.toFixed(5)
+    }
+  ];
+  const inputs = [
+    {
+      name: "Guess Number",
+      value: guessList.length
     },
     {
       name: "Disabled Letters",
@@ -487,12 +477,115 @@ const GameScreen = () => {
   return (
     <Box>
       <Container maxWidth="lg">
+
+      <Grid container spacing="2">
+        <Grid item md={12}>
+      <Card>
+              <CardContent>
+                <Typography variant="h5">
+                  Game Info
+                </Typography>
+                <Box sx={{ marginTop: "20px" }} >
+                  <Button variant="contained" onClick={() => { setTurnsPlayedByAi(0); setTurnsPlayed(0); setGamesPlayed(0); setGamesWon(0);; }}>Reset Statistics</Button>
+                </Box>
+                <br/>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableBody>
+                      {game.map((row) => (
+                        <TableRow
+                          key={row.name}
+                          sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                        >
+                          <TableCell component="th" scope="row">
+                            {row.name}
+                          </TableCell>
+                          <TableCell align="right">{row.value}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+        </Grid>
+        </Grid>
         <Grid container spacing="2">
 
-          <HistoryChart historyData={scoreHistory} />
+        <Grid item md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5">
+                  Inputs
+                </Typography>
+
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableBody>
+                      {inputs.map((row) => (
+                        <TableRow
+                          key={row.name}
+                          sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                        >
+                          <TableCell component="th" scope="row">
+                            {row.name}
+                          </TableCell>
+                          <TableCell align="right">{row.value}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+        </Grid>
+
+        <Grid item md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5">
+                  Outputs
+                </Typography>
+
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableBody>
+                      {round.map((row) => (
+                        <TableRow
+                          key={row.name}
+                          sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                        >
+                          <TableCell component="th" scope="row">
+                            {row.name}
+                          </TableCell>
+                          <TableCell align="right">{row.value}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+        </Grid>
+        </Grid>
+        <Grid container spacing="2">
+          {showStatistics && <HistoryChart historyData={scoreHistory} /> }
           <Grid item md={6}>
 
-            {(!running && weightSet !== "exporting") && <>
+          <FormControlLabel control={
+          <Switch
+          checked={showStatistics}
+          onChange={(e, value) => {
+            setShowStatistics(!showStatistics)
+          }} />
+        } label="Show statistics (hiding can speed up training)" />
+        <FormControlLabel control={
+        <Switch
+        checked={showGameBoard}
+        onChange={(e, value) => {
+          setShowGameBoard(!showGameBoard)
+        }} />
+      } label="Show game board (hiding can speed up training)" />
               <Card sx={{ minWidth: 275 }}>
                 <CardContent>
 
@@ -509,7 +602,7 @@ const GameScreen = () => {
                   </Typography>
 
                   <Slider
-                    disabled={textnnet}
+                    disabled={textnnet || (running && weightSet == "exporting")}
                     defaultValue={layers}
                     value={layers}
                     // getAriaValueText={}
@@ -533,6 +626,7 @@ const GameScreen = () => {
                     value={numberOfPossibleAnswers}
                     // getAriaValueText={}
                     valueLabelDisplay="auto"
+                    disabled={running}
                     onChange={(e, value) => {
                       setNumberOfPossibleAnswers(value);
                     }}
@@ -550,6 +644,7 @@ const GameScreen = () => {
                       id="activation-function"
                       value={activationFunction}
                       label="Activation Function"
+                      disabled={running && weightSet == "exporting"}
                       onChange={(e) => {
                         setActivationFunction(e.target.value);
                       }}
@@ -644,8 +739,6 @@ const GameScreen = () => {
                   </label>
                 </CardContent>
               </Card>
-            </>
-            }
             <br />
             <Card sx={{ minWidth: 275 }}>
               <CardContent>
@@ -654,32 +747,6 @@ const GameScreen = () => {
                 </Typography>
                 <Divider></Divider>
                 
-
-                <FormControlLabel control={
-                  <Switch 
-                  
-                  checked={autoTrain}
-                  onChange={(e, value) => {
-                    setAutoTrain(value)
-                  }} />
-                } label="Auto-train" />
-                <br/>
-                <FormControlLabel control={
-                  <Switch
-                  disabled={autoTrain}
-                  checked={endGameOnGuessWithDisabledLetter}
-                  onChange={(e, value) => {
-                    setEndGameOnGuessWithDisabledLetter(value)
-                    if (value === false) {
-                      setTrainWithValidRandomGuess(false);
-                    }
-                  }} />
-                } label="End game on guesses with disabled letters" />
-
-                <Typography variant="subtitle2" gutterBottom>
-                  (can speed up training)
-                </Typography>
-                <br />
                 <Typography id="non-linear-slider" gutterBottom>
                   Speed (ms):
                 </Typography>
@@ -703,6 +770,32 @@ const GameScreen = () => {
                   Training Options
                 </Typography>
                 <Divider></Divider>
+
+<FormControlLabel control={
+  <Switch 
+  
+  checked={autoTrain}
+  onChange={(e, value) => {
+    setAutoTrain(value)
+  }} />
+} label="Auto-train" />
+<br/>
+<br/>
+<FormControlLabel control={
+  <Switch
+  disabled={autoTrain}
+  checked={endGameOnGuessWithDisabledLetter}
+  onChange={(e, value) => {
+    setEndGameOnGuessWithDisabledLetter(value)
+    if (value === false) {
+      setTrainWithValidRandomGuess(false);
+    }
+  }} />
+} label="End game on invalid guesses" />
+
+<Typography variant="subtitle2" >
+  (can speed up training)
+</Typography>
                 <br/>
                 <FormControlLabel control={
                   <Switch 
@@ -711,7 +804,7 @@ const GameScreen = () => {
                   onChange={(e, value) => {
                     setTrainingMode(value);
                   }} />
-                } label="Train with correct word after game" />
+                } label="Train after game" />
                 {!endGameOnGuessWithDisabledLetter ? (<>
                   <FormControlLabel control={
                     <Switch 
@@ -720,7 +813,7 @@ const GameScreen = () => {
                     onChange={(e, value) => {
                       setTrainWithValidRandomGuess(value)
                     }} />
-                  } label="Train with random valid guess if AI guesses disabled letter" />
+                  } label="Train during game when AI guesses invalid word" />
                   {trainWithValidRandomGuess && (<><Typography id="non-linear-slider" gutterBottom>
                     Train up to {timesToTrainWithValidWord} time(s) after invalid guess:
                   </Typography>
@@ -811,36 +904,8 @@ const GameScreen = () => {
               </CardContent>
             </Card>
             <br />
-            <Card sx={{ minWidth: 275 }}>
-              <CardContent>
-                <Typography variant="h5">
-                  Info
-                </Typography>
-                <Divider></Divider>
-                <Box sx={{ marginTop: "20px" }} >
-                  <Button variant="contained" onClick={() => { setTurnsPlayedByAi(0); setTurnsPlayed(0); setGamesPlayed(0); setGamesWon(0);; }}>Reset Statistics</Button>
-                </Box>
-
-                <TableContainer component={Paper}>
-                  <Table>
-                    <TableBody>
-                      {rows.map((row) => (
-                        <TableRow
-                          key={row.name}
-                          sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                        >
-                          <TableCell component="th" scope="row">
-                            {row.name}
-                          </TableCell>
-                          <TableCell align="right">{row.value}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
           </Grid>
+          {showGameBoard && 
           <Grid item md={6}>
 
 
@@ -919,6 +984,7 @@ const GameScreen = () => {
       </Table>
     </TableContainer> */}
           </Grid>
+        }
         </Grid>
       </Container>
     </Box>
@@ -1046,10 +1112,10 @@ function getHighestNumberIndex(arrayOfNumbers: number[]) {
   });
   return { index: currentBestGuessOfIndex, certainty: highestProbability };
 }
-function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[]) {
+function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[], guessList: string[]) {
   let expectedResult: number[] = []
   for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(getExpectedOutputForAnswer(wordList[activeResultIndex], wordList[i], disabledLetters, correctLetters, presentLetters));
+    expectedResult.push(getExpectedOutputForAnswer(wordList[activeResultIndex], wordList[i], disabledLetters, correctLetters, presentLetters, guessList));
   }
   return expectedResult;
 }
@@ -1082,19 +1148,19 @@ function wordContainsPresentLetters(word:string, presentLetters: string[]) {
   return  wordContainsPresentLetters
 }
 
-function getExpectedOutputForAnswer(correctWord: string, word: string, disabledLetters: string[], correctLetters: string[], presentLetters: string[]) {
-  const isCorrectWord = correctWord === word;
-  const wordIncludesDisabledLetter = includesDisabledLetter(disabledLetters, word);
-  
-  let hasCorrectLettersInCorrectPlace = wordHasCorrectLettersInPlace(word, correctLetters);
-  let containsPresentLetters = wordContainsPresentLetters(word, presentLetters);
+function getExpectedOutputForAnswer(correctWord: string, answerWord: string, disabledLetters: string[], correctLetters: string[], presentLetters: string[], guessList: string[]) {
 
-  if (isCorrectWord) {
+  // If it is the correct word, that is easy
+  if (correctWord === answerWord) {
     return .8;
-  } else if (!wordIncludesDisabledLetter && hasCorrectLettersInCorrectPlace && containsPresentLetters) {
-    return .8;
+
+  // If it is a repeated guess, includes disabled letters, does not have the correct letters in place, or does not contain the present letters, it could potentially be the correct word
+  } else if (!guessList.includes(answerWord) && !includesDisabledLetter(disabledLetters, answerWord) &&  wordHasCorrectLettersInPlace(answerWord, correctLetters) && wordContainsPresentLetters(answerWord, presentLetters)) {
+    return 0.8;
+  
+  // Otherwise it is not the correct answer
   } else {
-    return 0.1;
+    return 0.01;
   }
 }
 
@@ -1107,12 +1173,18 @@ function randomInteger(min: number, max: number) {
 // }
 
 function includesDisabledLetter(disabledLetters: string[], word: string) {
-  let stringArray = word.toUpperCase().split("")
-  while (stringArray.length > 0) {
-    if (disabledLetters.includes(stringArray[0])) {
-      return true;
+  if (word) {
+    word = word.toUpperCase();
+    // if (gl.includes(word)) {
+    //   return true;
+    // }
+    let stringArray = word.split("")
+    while (stringArray.length > 0) {
+      if (disabledLetters.includes(stringArray[0])) {
+        return true;
+      }
+      stringArray.splice(0, 1);
     }
-    stringArray.splice(0, 1);
   }
   return false;
 }
