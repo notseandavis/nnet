@@ -5,7 +5,7 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 interface HistoryChartProps {
   historyData: [number, number, number][];
 }const chartOptions = {
-  title: "Accuracy",
+  title: "Best Guess vs Correct Asnwer",
   curveType: "function",
   legend: { position: "bottom" },
 };
@@ -19,7 +19,7 @@ const Keyboard = (props: HistoryChartProps) => {
       <Chart
             chartType="LineChart"
             width="100%"
-            height="400px"
+            height="300px"
             data={chartData}
             options={chartOptions}
           />

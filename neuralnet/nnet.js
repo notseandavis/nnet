@@ -1,6 +1,6 @@
 // FYI, this is a mess, with too much one-off stuff just to make it work
 export default class NNEt {
-    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false, momentum = 0.001, activationFunction = "sigmoid") {
+    constructor(inputs, numberOfNodes, numberOfLayers, outputs = 1, learningRate = 0.3, randomInitialWeights = false, momentum = 0.001, activationFunction = "sigmoid", numberOfExtraOutputLayers = 0) {
         // array of inputs
         this.inputs = inputs;
         // e.x. [[1], [2], [1]]
@@ -15,6 +15,8 @@ export default class NNEt {
         // number of hidden layers
         // TODO: fix layer creation
         this.numberOfLayers = numberOfLayers + 1;
+
+        this.numberOfExtraOutputLayers = numberOfExtraOutputLayers;
 
         // which activation function to use
         if (activationFunction === "relu") {
@@ -65,7 +67,7 @@ export default class NNEt {
             i++;
         }
 
-        // Output layer
+        // First (and maybe last) output layer
         this.layers.push([]);
         while (this.layers[i].length < this.outputs) {
             if (this.layers.length > 2) {
@@ -75,6 +77,17 @@ export default class NNEt {
                 // No middle layers, take the input nodes directly
                 this.layers[i].push(new Node(inputs.length, this.randomInitialWeights, this.activationFunction)); 
             }
+        }
+        i++;
+
+        // Extra output layers (if required)
+        let numberOfExtraOutputLayersCreated = 0;
+        while (numberOfExtraOutputLayersCreated < this.numberOfExtraOutputLayers) {
+            this.layers.push([]);
+            while (this.layers[i].length < this.outputs) {
+                this.layers[i].push(new Node(this.outputs, this.randomInitialWeights, this.activationFunction));
+            }
+            numberOfExtraOutputLayersCreated++;
         }
     }
     
@@ -128,9 +141,9 @@ export default class NNEt {
                 } else {
                     // this is some middle or input layer, add up the previous layers together as they all connect together
                     previousLayersDeltas[i + 1].forEach(delta => { 
-                        nodeDelta = delta; 
-                        nextLayersDelta += this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate, this.momentum);
+                        nodeDelta += delta; 
                     });
+                    nextLayersDelta = this.layers[i][ii].train(thisLayersInput, nodeDelta, this.learningRate, this.momentum);
                 }
                 previousLayersDeltas[i].push(nextLayersDelta)
                 error = error + nextLayersDelta;

@@ -2,16 +2,18 @@ import React from 'react';
 import Chart from 'react-google-charts';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 
-interface HistoryChartProps {
-  historyData: [number, number, number][];
-}const chartOptions = {
-  title: "Accuracy",
+interface WinRatioChartProps {
+  historyData: [number, number][];
+  chartDataTitle: string;
+}
+const chartOptions = {
+  title: "Accuracy (across Epochs)",
   curveType: "function",
   legend: { position: "bottom" },
 };
-const Keyboard = (props: HistoryChartProps) => {
+const WinRatioChart = (props: WinRatioChartProps) => {
   const {historyData} = props;
-  const chartData = [...[["Game", "Accuracy", "Average Accuracy"]], ...historyData];
+  const chartData = [...[["Epoch", props.chartDataTitle]], ...historyData];
 
   return (
     <>
@@ -52,4 +54,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Keyboard;
+export default WinRatioChart;

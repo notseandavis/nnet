@@ -9,7 +9,7 @@ export enum TextBlockState {
 }
 
 const ColorMap: Record<TextBlockState, string> = {
-  [TextBlockState.GUESS]: 'transparent',
+  [TextBlockState.GUESS]: '#8b939c',
   [TextBlockState.CORRECT]: '#76b041',
   [TextBlockState.POSSIBLE]: '#FFC914',
   [TextBlockState.INCORRECT]: '#8b939c',

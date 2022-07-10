@@ -10,6 +10,7 @@ import fiveLetterWords from './constants/fiveLetterWords.json';
 import { Button, FormGroup, Switch, FormControlLabel, Box, Container, TableContainer, Table, TableCell, TableRow, Paper, TableBody, TableHead, Grid, Slider, Typography, TextField, Divider, Card, CardContent, InputLabel, MenuItem, Select, FormControl, Input, styled } from '@mui/material';
 import { Chart } from "react-google-charts";
 import HistoryChart from './components/HistoryChart';
+import WinRatioChart from './components/WinRatioChart';
 
 const BOARD_TEMPLATE = getInitialBoard();
 let textnnet: TextNNet;
@@ -25,21 +26,27 @@ const GameScreen = () => {
   const [certainty, setCertainty] = useState<number>(0);
   const [answerCertainty, setAnswerCertainty] = useState<number>(0);
   const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(200);
-  const [certaintyOfCorrectAnswerForTraining, setCertaintyOfCorrectAnswerForTraining] = useState<number>(0.8);
-  const [certaintyOfValidAnswersForTraining, setCertaintyOfValidAnswersForTraining] = useState<number>(0.8);
-  const [certaintyOfInvalidAnswersForTraining, setCertaintyOfInvalidAnswersForTraining] = useState<number>(0.8);
+  const [certaintyOfCorrectAnswerForTraining, setCertaintyOfCorrectAnswerForTraining] = useState<number>(0.55);
+  const [certaintyOfValidAnswersForTraining, setCertaintyOfValidAnswersForTraining] = useState<number>(0.55);
+  const [certaintyOfInvalidAnswersForTraining, setCertaintyOfInvalidAnswersForTraining] = useState<number>(0.40);
+  const [autoTrainLearningRateIncrease, setAutoTrainLearningRateIncrease] = useState<number>(1.0);
+  const [autoTrainMomentumIncrease, setAutoTrainMomentumIncrease] = useState<number>(1.0);
+  const [autoTrainLearningRateDecrease, setAutoTrainLearningRateDecrease] = useState<number>(0.95);
+  const [autoTrainMomentumDecrease, setAutoTrainMomentumDecrease] = useState<number>(0.9);
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
   const [speed, setSpeed] = useState<number>(0);
   const [layers, setLayers] = useState<number>(0);
   const [learningRate, setLearningRate] = useState<string>("0.005");
-  const [momentum, setMomentum] = useState<string>("0.001");
+  const [momentum, setMomentum] = useState<string>("0.0005");
   const [autoTrainStatus, setAutoTrainStatus] = useState<string>("Off");
   const [nnGuess, setNnGuess] = useState<string>('');
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
   const [randomGuess, setRandomGuess] = useState<string>('');
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [endGameOnGuessWithDisabledLetter, setEndGameOnGuessWithDisabledLetter] = useState<boolean>(true);
+  const [useRandomAnswers, setUseRandomAnswers] = useState<boolean>(false);
+  const [skipTrainingIfGameIsWon, setSkipTrainingIfGameIsWon] = useState<boolean>(true);
   const [hardMode, setHardMode] = useState<boolean>(false);
   const [trainWithValidRandomGuess, setTrainWithValidRandomGuess] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
@@ -53,10 +60,11 @@ const GameScreen = () => {
   const [nnError, setnnError] = useState<number>(0);
   const [originalWeights, setOriginalWeights] = useState<object>({});
   const [trainingList, setTrainingList] = useState<(number[][] | string[][])[]>([]);
-  const [scoreList, setScoreList] = useState<[number, string][]>([]);
+  const [winRatioOverTime, setWinRatioOverTime] = useState<[number, number][]>([[0, 0]]);
+  const [networkErrorOverTime, setNetworkErrorOverTime] = useState<[number, number][]>([[0, 0]]);
   const [scoreHistory, setScoreHistory] = useState<[number, number, number][]>([[0, 0, 0]]);
-  const [showGameBoard, setShowGameBoard] = useState<boolean>(true);
-  const [showStatistics, setShowStatistics] = useState<boolean>(true);
+  const [showGameBoard, setShowGameBoard] = useState<boolean>(false);
+  const [showStatistics, setShowStatistics] = useState<boolean>(false);
 
 
 
@@ -74,21 +82,55 @@ const GameScreen = () => {
   const autoTrainAverageNumberOfGuesses = useRef<number>(0);
   const autoTrainPreviousAverageNumberOfGuesses = useRef<number>(0);
   const autoTranPreviousWinRatio = useRef<number>(0);
+  const autoTrainCurrentWinRatio = useRef<number>(0);
+  const autoTrainGamesWonThisEpoch = useRef<number>(0);
+  const autoTrainNeuralNetworkErrorThisEpoch = useRef<number>(0);
   const autoTrainOldestNumberOfGuesses = useRef<number>(0);
+
+
+  function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[], guessList: string[]) {
+    let expectedResult: number[] = []
+    for (var i = 0; i < numberOfOptions; i++) {
+      expectedResult.push(getExpectedOutputForAnswer(wordList[activeResultIndex], wordList[i], disabledLetters, correctLetters, presentLetters, guessList));
+    }
+    return expectedResult;
+  }
+
+  function getExpectedOutputForAnswer(correctWord: string, answerWord: string, disabledLetters: string[], correctLetters: string[], presentLetters: string[], guessList: string[]) {
+
+    // If it is the correct word, that is easy
+    if (correctWord === answerWord) {
+      return certaintyOfCorrectAnswerForTraining;
+  
+    // If it is a repeated guess, includes disabled letters, does not have the correct letters in place, or does not contain the present letters, it could potentially be the correct word
+    } else if (!guessList.includes(answerWord) && !includesDisabledLetter(disabledLetters, answerWord) &&  wordHasCorrectLettersInPlace(answerWord, correctLetters) && wordContainsPresentLetters(answerWord, presentLetters)) {
+      return certaintyOfValidAnswersForTraining;
+    
+    // Otherwise it is not the correct answer
+    } else {
+      return certaintyOfInvalidAnswersForTraining;
+    }
+  }
+
+
 
   useEffect(() => {
     if (gameOver === false) {
-      if (wordToGuessIndex.current > wordList.length - 2) {
-        wordToGuessIndex.current = 0;
+      if (!useRandomAnswers) {
+        if (wordToGuessIndex.current > wordList.length - 2) {
+          wordToGuessIndex.current = 0;
+        } else {
+          wordToGuessIndex.current++;
+        }
+        wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
       } else {
-        wordToGuessIndex.current++;
-      }
-      wordToGuess.current =  wordList[wordToGuessIndex.current].toUpperCase();
-      
 
-      // const newWord = getRandomWord(wordList);
-      // wordToGuess.current = newWord.word;
-      // wordToGuessIndex.current = newWord.index
+        
+        
+        const newWord = getRandomWord(wordList);
+        wordToGuess.current = newWord.word;
+        wordToGuessIndex.current = newWord.index
+      }
 
       setCurrentWordIndex(wordToGuessIndex.current);
       // setExpectedResult(getExpectedOutput(disabledLetters, wordList, wordList.length, newWord.index));
@@ -111,40 +153,91 @@ const GameScreen = () => {
 
   const trainAtEndOfGame = (disabledLettersList: string[], correctLettersList: string[], presentLettersList: string[]) => {
 
-
+    autoTrainStep.current++;
+    if (skipTrainingIfGameIsWon && guessList[guessList.length - 1] === wordToGuess.current) {
+      return;
+    }
     if (autoTrain) {
       let lr = parseFloat(learningRate)
       let m = parseFloat(momentum)
-      // turn off when training is done
-      if (m < 0.00000000005 || lr < 0.00000000001) {
-        setAutoTrain(false)
-        setTrainingMode(false)
-        setEndGameOnGuessWithDisabledLetter(false)
-      }
 
-      autoTrainStep.current++;
 
-      autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current + guessList.length;
+      // autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current + guessList.length;
 
-      if (autoTrainStep.current > numberOfPossibleAnswers) {
+      if (useRandomAnswers ? (autoTrainStep.current > numberOfPossibleAnswers / 2) : autoTrainStep.current > numberOfPossibleAnswers) {
+
+
+
+        // End of epoch
+        if (randomInteger(0, 2) == 0) {
+          setUseRandomAnswers(false);
+          setCurrentWordIndex(0);
+        } else {
+          setUseRandomAnswers(true);
+        }
+
+        // if (randomInteger(0, 9) == 9) {
+        //   setEndGameOnGuessWithDisabledLetter(false);
+        // } else {
+        //   setEndGameOnGuessWithDisabledLetter(true);
+        // }
+
+
         // setEndGameOnGuessWithDisabledLetter(!endGameOnGuessWithDisabledLetter)
+        let newWinRatio = (autoTrainGamesWonThisEpoch.current / autoTrainStep.current);
+        
+        setWinRatioOverTime([...winRatioOverTime, [autoTrainEpoch.current, newWinRatio]])
+        setNetworkErrorOverTime([...networkErrorOverTime, [autoTrainEpoch.current, (autoTrainNeuralNetworkErrorThisEpoch.current / autoTrainStep.current)]])
         autoTrainEpoch.current++;
         autoTrainStep.current = 0;
-        let newWinRatio = (gamesWon / gamesPlayed);
+        autoTrainGamesWonThisEpoch.current = 0;
 
+        autoTrainNeuralNetworkErrorThisEpoch.current = 0;
+        
         if (newWinRatio > autoTranPreviousWinRatio.current) {
-            textnnet.nnet.momentum = ((m * 0.75).toString());
-            setMomentum((textnnet.nnet.momentum).toString())
-            textnnet.nnet.learningRate = (lr * 0.7).toString();
-            setLearningRate((textnnet.nnet.learningRate).toString())
+          if (newWinRatio > 0.3) {
+            if (newWinRatio > 0.7) {
+              if (newWinRatio > 0.9) {
+                // turn off training
+                setAutoTrain(false)
+                setTrainingMode(false)
+                setEndGameOnGuessWithDisabledLetter(false)
+              }
+              // setCertaintyOfCorrectAnswerForTraining(0.9);
+              // setCertaintyOfValidAnswersForTraining(0.5);
+              // setCertaintyOfInvalidAnswersForTraining(0.1);
+              setAutoTrainMomentumDecrease(autoTrainMomentumDecrease - 0.05)
+              setAutoTrainLearningRateDecrease(autoTrainLearningRateDecrease - 0.1)
+            } else {
+              // setCertaintyOfCorrectAnswerForTraining(0.9);
+              // setCertaintyOfValidAnswersForTraining(0.5);
+              // setCertaintyOfInvalidAnswersForTraining(0.1);
+              // setAutoTrainMomentumDecrease(autoTrainMomentumDecrease - 0.05)
+              // setAutoTrainLearningRateDecrease(autoTrainLearningRateDecrease - 0.1)
+            }
+          } else {
+            // setCertaintyOfCorrectAnswerForTraining(0.9);
+            // setCertaintyOfValidAnswersForTraining(0.5);
+            // setCertaintyOfInvalidAnswersForTraining(0.1);
+          }
+            let newM = m * autoTrainMomentumDecrease;
+            let newLR = lr * autoTrainLearningRateDecrease;
+            if (newM > 0.0000000000001) {
+              textnnet.nnet.momentum = ((newM).toString());
+              setMomentum((textnnet.nnet.momentum).toString())
+            }
+            if (newLR > 0.0000000000001) {
+              textnnet.nnet.learningRate = (newLR).toString();
+              setLearningRate((textnnet.nnet.learningRate).toString())
+            }
         } else if (newWinRatio < autoTranPreviousWinRatio.current) {
-          let newM = m * 1.2;
-          if (newM < 0.001) {
+          let newM = m * autoTrainMomentumIncrease;
+          if (newM < 0.01) {
             textnnet.nnet.momentum = ((newM).toString());
             setMomentum((newM).toString())
           }
-          let newLR = lr * 1.2;
-          if (newLR < 0.005) {
+          let newLR = lr * autoTrainLearningRateIncrease;
+          if (newLR < 0.05) {
             textnnet.nnet.learningRate = (newLR).toString();
             setLearningRate((newLR).toString())
           }
@@ -152,10 +245,11 @@ const GameScreen = () => {
           // do nothing
         }
 
-        autoTranPreviousWinRatio.current =(gamesWon / gamesPlayed);
+        autoTranPreviousWinRatio.current =(newWinRatio);
       }
       
       textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList, guessList));
+      autoTrainNeuralNetworkErrorThisEpoch.current += Math.abs(textnnet.nnet.globalError);
       setnnError(textnnet.nnet.globalError);
 
       // autoTrainTotalIterations.current++;
@@ -385,6 +479,7 @@ const GameScreen = () => {
     } else {
       if (nnBestGuess === wordToGuess.current) {
         setGamesWon(gamesWon + 1);
+        autoTrainGamesWonThisEpoch.current++;
       }
 
       if (guessList.length > 0) {
@@ -392,7 +487,7 @@ const GameScreen = () => {
       }
       setGuessList(prev => [...prev, nnBestGuess]);
     }
-    setNnGuess(nnBestGuess + invalid)
+    setNnGuess(invalid + nnBestGuess )
 
   };
 
@@ -431,7 +526,16 @@ const GameScreen = () => {
     {
       name: "Win Ratio",
       value: (gamesWon / gamesPlayed).toFixed(5)
+    },
+    {
+      name: "Current Epoch Win Ratio",
+      value: (autoTrainGamesWonThisEpoch.current / autoTrainStep.current).toFixed(5)
+    },
+    {
+      name: "Previous Epoch Win Ratio",
+      value: autoTranPreviousWinRatio.current.toFixed(5)
     }
+    
   ];
   const round = [
     {
@@ -444,7 +548,7 @@ const GameScreen = () => {
     },
     {
       name: "Correct Answer Certainty",
-      value: answerCertainty.toFixed(5)
+      value: answerCertainty?.toFixed(5)
     },
     {
       name: "Best Guess Certainty",
@@ -485,6 +589,20 @@ const GameScreen = () => {
                 <Typography variant="h5">
                   Game Info
                 </Typography>
+
+<FormControlLabel control={
+<Switch
+checked={showStatistics}
+onChange={(e, value) => {
+  setShowStatistics(!showStatistics)
+}} />
+} label="Show statistics (hiding can speed up training)" />
+
+{showStatistics && <>
+            <HistoryChart historyData={scoreHistory} />
+            <WinRatioChart historyData={winRatioOverTime} chartDataTitle={"Win Ratio"} />
+            <WinRatioChart historyData={networkErrorOverTime} chartDataTitle={"Network Error"} />
+        </>}
                 <Box sx={{ marginTop: "20px" }} >
                   <Button variant="contained" onClick={() => { setTurnsPlayedByAi(0); setTurnsPlayed(0); setGamesPlayed(0); setGamesWon(0);; }}>Reset Statistics</Button>
                 </Box>
@@ -510,6 +628,7 @@ const GameScreen = () => {
             </Card>
         </Grid>
         </Grid>
+
         <Grid container spacing="2">
 
         <Grid item md={6}>
@@ -569,23 +688,7 @@ const GameScreen = () => {
         </Grid>
         </Grid>
         <Grid container spacing="2">
-          {showStatistics && <HistoryChart historyData={scoreHistory} /> }
           <Grid item md={6}>
-
-          <FormControlLabel control={
-          <Switch
-          checked={showStatistics}
-          onChange={(e, value) => {
-            setShowStatistics(!showStatistics)
-          }} />
-        } label="Show statistics (hiding can speed up training)" />
-        <FormControlLabel control={
-        <Switch
-        checked={showGameBoard}
-        onChange={(e, value) => {
-          setShowGameBoard(!showGameBoard)
-        }} />
-      } label="Show game board (hiding can speed up training)" />
               <Card sx={{ minWidth: 275 }}>
                 <CardContent>
 
@@ -635,6 +738,73 @@ const GameScreen = () => {
                     min={1}
                     max={fiveLetterWords.length}
                   />
+
+
+
+
+
+
+                  <Typography gutterBottom>
+                    Expected AI certainty of correct answer: {certaintyOfCorrectAnswerForTraining}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={certaintyOfCorrectAnswerForTraining}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setCertaintyOfCorrectAnswerForTraining(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={0.01}
+                    max={0.99}
+                  />
+
+                  <Typography gutterBottom>
+                    Expected AI certainty of all valid answers: {certaintyOfValidAnswersForTraining}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={certaintyOfValidAnswersForTraining}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setCertaintyOfValidAnswersForTraining(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={0.01}
+                    max={0.99}
+                  />
+
+                  <Typography gutterBottom>
+                    Expected AI certainty of all invlaid answers: {certaintyOfInvalidAnswersForTraining}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={certaintyOfInvalidAnswersForTraining}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setCertaintyOfInvalidAnswersForTraining(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={0.01}
+                    max={0.99}
+                  />
+
+
                   <FormControl sx={{
                     m: 3, minWidth: 200
                   }}>
@@ -745,7 +915,6 @@ const GameScreen = () => {
                 <Typography variant="h5">
                   Game Options
                 </Typography>
-                <Divider></Divider>
                 
                 <Typography id="non-linear-slider" gutterBottom>
                   Speed (ms):
@@ -771,15 +940,114 @@ const GameScreen = () => {
                 </Typography>
                 <Divider></Divider>
 
+                  <FormControlLabel control={
+                    <Switch 
+                    
+                    checked={autoTrain}
+                    onChange={(e, value) => {
+                      setAutoTrain(value)
+                    }} />
+                  } label="Auto-train" />
+                  <br/>
+
+                  <Typography gutterBottom>
+                    If win ratio goes down, change learning rate by * {autoTrainLearningRateIncrease}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={autoTrainLearningRateIncrease}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setAutoTrainLearningRateIncrease(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={-0.99}
+                    max={1.99}
+                  />
+                  <Typography gutterBottom>
+                    If win ratio goes down, change momentum by * {autoTrainMomentumIncrease}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={autoTrainMomentumIncrease}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setAutoTrainMomentumIncrease(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={-0.99}
+                    max={1.99}
+                  />
+                  <Typography gutterBottom>
+                    If win ratio goes up, change learning rate by * {autoTrainLearningRateDecrease}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={autoTrainLearningRateDecrease}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setAutoTrainLearningRateDecrease(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={-0.99}
+                    max={1.99}
+                  />
+                  <Typography gutterBottom>
+                    If win ratio goes up, change momentum by * {autoTrainMomentumDecrease}
+                  </Typography>
+
+                  <Slider
+                    // disabled={textnnet}
+                    // defaultValue={numberOfPossibleAnswers}
+                    value={autoTrainMomentumDecrease}
+                    // getAriaValueText={}
+                    valueLabelDisplay="auto"
+                    disabled={running}
+                    onChange={(e, value) => {
+                      setAutoTrainMomentumDecrease(value);
+                    }}
+                    step={0.01}
+                    // marks
+                    min={-0.99}
+                    max={1.99}
+                  />
+                  <Divider></Divider>
+
 <FormControlLabel control={
-  <Switch 
-  
-  checked={autoTrain}
-  onChange={(e, value) => {
-    setAutoTrain(value)
-  }} />
-} label="Auto-train" />
+<Switch
+disabled={autoTrain}
+checked={useRandomAnswers}
+onChange={(e, value) => {
+  setUseRandomAnswers(!useRandomAnswers)
+}} />
+} label="Use random answers during game" />
+<Typography variant="subtitle2" >
+  (epochs will not be exactly accurate)
+</Typography>
 <br/>
+<FormControlLabel control={
+<Switch
+checked={skipTrainingIfGameIsWon}
+disabled={autoTrain}
+onChange={(e, value) => {
+  setSkipTrainingIfGameIsWon(!skipTrainingIfGameIsWon)
+}} />
+} label="Skip training if game is won" />
 <br/>
 <FormControlLabel control={
   <Switch
@@ -905,8 +1173,16 @@ const GameScreen = () => {
             </Card>
             <br />
           </Grid>
-          {showGameBoard && 
+
           <Grid item md={6}>
+        <FormControlLabel control={
+        <Switch
+        checked={showGameBoard}
+        onChange={(e, value) => {
+          setShowGameBoard(!showGameBoard)
+        }} />
+      } label="Show game board (hiding can speed up training)" />
+          {showGameBoard && <>
 
 
             {BOARD_TEMPLATE.map((row, rowIndex) => {
@@ -983,8 +1259,8 @@ const GameScreen = () => {
         </TableBody>
       </Table>
     </TableContainer> */}
+        </>}
           </Grid>
-        }
         </Grid>
       </Container>
     </Box>
@@ -1073,53 +1349,33 @@ export default GameScreen;
 //   ["z", 25],
 // ]);
 
-function getBestValidGuess(scoresAndIndexes: { score: number, index: number, word: string }[], disabledLetters: string[]) {
+// function getBestValidGuess(scoresAndIndexes: { score: number, index: number, word: string }[], disabledLetters: string[]) {
 
-  let i = scoresAndIndexes.length;
-  let bestValidGuess;
-  while (!bestValidGuess && i > -1) {
-    i--;
-    let thisWord = wordList[scoresAndIndexes[i].index];
-    if (!includesDisabledLetter(disabledLetters, thisWord)) {
-      bestValidGuess = thisWord;
-    }
-  }
-  return bestValidGuess ? { word: bestValidGuess.toUpperCase(), index: i } : { word: "", index: 0 };
-}
+//   let i = scoresAndIndexes.length;
+//   let bestValidGuess;
+//   while (!bestValidGuess && i > -1) {
+//     i--;
+//     let thisWord = wordList[scoresAndIndexes[i].index];
+//     if (!includesDisabledLetter(disabledLetters, thisWord)) {
+//       bestValidGuess = thisWord;
+//     }
+//   }
+//   return bestValidGuess ? { word: bestValidGuess.toUpperCase(), index: i } : { word: "", index: 0 };
+// }
 
-function getScoresWithWords(arrayOfNumbers: number[], words: string[]) {
-  let scoresAndIndexes: [number, string][] = [];
-  arrayOfNumbers.forEach((n, i) => {
-    scoresAndIndexes.push([n, words[i].toUpperCase()]);
-    // scoresAndIndexes[i].push(n);
-    // scoresAndIndexes[i].push()
-  })
-  scoresAndIndexes.sort((a, b) => {
-    return b[0] - a[0];
-  });
-  return scoresAndIndexes;
-}
-
-function getHighestNumberIndex(arrayOfNumbers: number[]) {
-
-  let highestProbability = 0;
-  let currentBestGuessOfIndex = 0;
-  arrayOfNumbers.forEach((number, i) => {
-    if (number > highestProbability) {
-      highestProbability = number;
-      currentBestGuessOfIndex = i;
-    }
-  });
-  return { index: currentBestGuessOfIndex, certainty: highestProbability };
-}
-function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[], guessList: string[]) {
-  let expectedResult: number[] = []
-  for (var i = 0; i < numberOfOptions; i++) {
-    expectedResult.push(getExpectedOutputForAnswer(wordList[activeResultIndex], wordList[i], disabledLetters, correctLetters, presentLetters, guessList));
-  }
-  return expectedResult;
-}
-
+// function getScoresWithWords(arrayOfNumbers: number[], words: string[]) {
+//   let scoresAndIndexes: [number, string][] = [];
+//   arrayOfNumbers.forEach((n, i) => {
+//     scoresAndIndexes.push([n, words[i].toUpperCase()]);
+//     // scoresAndIndexes[i].push(n);
+//     // scoresAndIndexes[i].push()
+//   })
+//   scoresAndIndexes.sort((a, b) => {
+//     return b[0] - a[0];
+//   });
+//   return scoresAndIndexes;
+// }
+  
 function wordHasCorrectLettersInPlace(word: string, correctLetters: string[]) {
   let wordHasCorrectLettersInCorrectPlace = true;
   let i = 0
@@ -1135,6 +1391,19 @@ function wordHasCorrectLettersInPlace(word: string, correctLetters: string[]) {
   return wordHasCorrectLettersInCorrectPlace;
 }
 
+function getHighestNumberIndex(arrayOfNumbers: number[]) {
+
+  let highestProbability = 0;
+  let currentBestGuessOfIndex = 0;
+  arrayOfNumbers.forEach((number, i) => {
+    if (number > highestProbability) {
+      highestProbability = number;
+      currentBestGuessOfIndex = i;
+    }
+  });
+  return { index: currentBestGuessOfIndex, certainty: highestProbability };
+}
+
 function wordContainsPresentLetters(word:string, presentLetters: string[]) {
   let wordContainsPresentLetters = true;
   let i = 0;
@@ -1146,22 +1415,6 @@ function wordContainsPresentLetters(word:string, presentLetters: string[]) {
     i++;
   } 
   return  wordContainsPresentLetters
-}
-
-function getExpectedOutputForAnswer(correctWord: string, answerWord: string, disabledLetters: string[], correctLetters: string[], presentLetters: string[], guessList: string[]) {
-
-  // If it is the correct word, that is easy
-  if (correctWord === answerWord) {
-    return .8;
-
-  // If it is a repeated guess, includes disabled letters, does not have the correct letters in place, or does not contain the present letters, it could potentially be the correct word
-  } else if (!guessList.includes(answerWord) && !includesDisabledLetter(disabledLetters, answerWord) &&  wordHasCorrectLettersInPlace(answerWord, correctLetters) && wordContainsPresentLetters(answerWord, presentLetters)) {
-    return 0.8;
-  
-  // Otherwise it is not the correct answer
-  } else {
-    return 0.01;
-  }
 }
 
 function randomInteger(min: number, max: number) {
