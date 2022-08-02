@@ -26,19 +26,19 @@ const GameScreen = () => {
   const [certainty, setCertainty] = useState<number>(0);
   const [answerCertainty, setAnswerCertainty] = useState<number>(0);
   const [numberOfPossibleAnswers, setNumberOfPossibleAnswers] = useState<number>(200);
-  const [certaintyOfCorrectAnswerForTraining, setCertaintyOfCorrectAnswerForTraining] = useState<number>(0.55);
-  const [certaintyOfValidAnswersForTraining, setCertaintyOfValidAnswersForTraining] = useState<number>(0.55);
-  const [certaintyOfInvalidAnswersForTraining, setCertaintyOfInvalidAnswersForTraining] = useState<number>(0.40);
-  const [autoTrainLearningRateIncrease, setAutoTrainLearningRateIncrease] = useState<number>(1.0);
-  const [autoTrainMomentumIncrease, setAutoTrainMomentumIncrease] = useState<number>(1.0);
-  const [autoTrainLearningRateDecrease, setAutoTrainLearningRateDecrease] = useState<number>(0.95);
-  const [autoTrainMomentumDecrease, setAutoTrainMomentumDecrease] = useState<number>(0.9);
+  const [certaintyOfCorrectAnswerForTraining, setCertaintyOfCorrectAnswerForTraining] = useState<number>(0.6);
+  const [certaintyOfValidAnswersForTraining, setCertaintyOfValidAnswersForTraining] = useState<number>(0.6);
+  const [certaintyOfInvalidAnswersForTraining, setCertaintyOfInvalidAnswersForTraining] = useState<number>(0.4);
+  const [autoTrainLearningRateIncrease, setAutoTrainLearningRateIncrease] = useState<number>(1.001);
+  const [autoTrainMomentumIncrease, setAutoTrainMomentumIncrease] = useState<number>(1.001);
+  const [autoTrainLearningRateDecrease, setAutoTrainLearningRateDecrease] = useState<number>(0.5);
+  const [autoTrainMomentumDecrease, setAutoTrainMomentumDecrease] = useState<number>(0.5);
   const [randomGuesses, setRandomGuesses] = useState<number>(0);
   const [timesToTrainWithValidWord, setTimesToTrainWithValidWord] = useState<number>(1);
   const [speed, setSpeed] = useState<number>(0);
   const [layers, setLayers] = useState<number>(0);
-  const [learningRate, setLearningRate] = useState<string>("0.005");
-  const [momentum, setMomentum] = useState<string>("0.0005");
+  const [learningRate, setLearningRate] = useState<string>("0.1");
+  const [momentum, setMomentum] = useState<string>("0.05");
   const [autoTrainStatus, setAutoTrainStatus] = useState<string>("Off");
   const [nnGuess, setNnGuess] = useState<string>('');
   const [nnBestValidGuess, setNnBestValidGuess] = useState<string>('');
@@ -46,7 +46,7 @@ const GameScreen = () => {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [endGameOnGuessWithDisabledLetter, setEndGameOnGuessWithDisabledLetter] = useState<boolean>(true);
   const [useRandomAnswers, setUseRandomAnswers] = useState<boolean>(false);
-  const [skipTrainingIfGameIsWon, setSkipTrainingIfGameIsWon] = useState<boolean>(true);
+  const [skipTrainingIfGameIsWon, setSkipTrainingIfGameIsWon] = useState<boolean>(false);
   const [hardMode, setHardMode] = useState<boolean>(false);
   const [trainWithValidRandomGuess, setTrainWithValidRandomGuess] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
@@ -80,12 +80,14 @@ const GameScreen = () => {
   const autoTrainEpoch = useRef<number>(0);
   const autoTrainStep = useRef<number>(0);
   const autoTrainAverageNumberOfGuesses = useRef<number>(0);
-  const autoTrainPreviousAverageNumberOfGuesses = useRef<number>(0);
+  const autoTrainBestAverageNumberOfGuesses = useRef<number>(0);
   const autoTranPreviousWinRatio = useRef<number>(0);
-  const autoTrainCurrentWinRatio = useRef<number>(0);
   const autoTrainGamesWonThisEpoch = useRef<number>(0);
+  const autoTrainBestGamesWonThisEpoch = useRef<number>(0);
+  const autoTrainGamesWonHistory = useRef<number[]>([]);
   const autoTrainNeuralNetworkErrorThisEpoch = useRef<number>(0);
-  const autoTrainOldestNumberOfGuesses = useRef<number>(0);
+  const autoTrainNumberOfGuessesHistory = useRef<number[]>([]);
+  const autoTrainAdjustmentEpochCycle = useRef<number>(0);
 
 
   function getExpectedOutput(disabledLetters: string[], wordList: string[], numberOfOptions: number, activeResultIndex: number, correctLetters: string[], presentLetters: string[], guessList: string[]) {
@@ -154,19 +156,68 @@ const GameScreen = () => {
   const trainAtEndOfGame = (disabledLettersList: string[], correctLettersList: string[], presentLettersList: string[]) => {
 
     autoTrainStep.current++;
-    if (skipTrainingIfGameIsWon && guessList[guessList.length - 1] === wordToGuess.current) {
-      return;
+    
+    if (autoTrainEpoch.current > 0) {
+
+      autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current + guessList.length;
+      autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current - autoTrainNumberOfGuessesHistory.current[0];
+      autoTrainNumberOfGuessesHistory.current.splice(0, 1);
+      
+      autoTrainGamesWonThisEpoch.current = autoTrainGamesWonThisEpoch.current - autoTrainGamesWonHistory.current[0]
+      autoTrainGamesWonHistory.current.splice(0, 1);
+
+      if (autoTrainGamesWonThisEpoch.current > autoTrainBestGamesWonThisEpoch.current) {
+        autoTrainBestGamesWonThisEpoch.current = autoTrainGamesWonThisEpoch.current
+      }
+      if (autoTrainAverageNumberOfGuesses.current > autoTrainBestAverageNumberOfGuesses.current) {
+        autoTrainBestAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current;
+      }
     }
-    if (autoTrain) {
-      let lr = parseFloat(learningRate)
-      let m = parseFloat(momentum)
 
 
-      // autoTrainAverageNumberOfGuesses.current = autoTrainAverageNumberOfGuesses.current + guessList.length;
+    
+    
+    if (autoTrainStep.current > numberOfPossibleAnswers) {
+      
+      setNetworkErrorOverTime([...networkErrorOverTime, [autoTrainEpoch.current, (autoTrainNeuralNetworkErrorThisEpoch.current / autoTrainStep.current)]])
+      
+      let newWinRatioThisEpoch = (autoTrainGamesWonThisEpoch.current / autoTrainStep.current);
+      let newWinRatio = (gamesWon / gamesPlayed);
+      setWinRatioOverTime([...winRatioOverTime, [autoTrainEpoch.current, newWinRatioThisEpoch]])
 
-      if (useRandomAnswers ? (autoTrainStep.current > numberOfPossibleAnswers / 2) : autoTrainStep.current > numberOfPossibleAnswers) {
 
+      autoTrainEpoch.current++;
+      autoTrainAdjustmentEpochCycle.current++;
+      autoTrainStep.current = 0;
+      autoTrainStep.current++;
+      autoTrainGamesWonThisEpoch.current = 0;
+      autoTrainNeuralNetworkErrorThisEpoch.current = 0;
+      
+      if (autoTrain) {
+        if (autoTrainAdjustmentEpochCycle.current > 3) {
+          autoTrainAdjustmentEpochCycle.current = 0;
 
+          let lr = textnnet.nnet.learningRate;
+          let m = textnnet.nnet.momentum;
+          
+          let newM = m * autoTrainMomentumDecrease;
+          let newLR = lr * autoTrainLearningRateDecrease;
+          
+          if (newM > 0.0000000001) {
+            textnnet.nnet.momentum = ((newM).toString());
+            setMomentum((textnnet.nnet.momentum).toString())
+          }
+          if (newLR > 0.0000000001) {
+            textnnet.nnet.learningRate = (newLR).toString();
+            setLearningRate((textnnet.nnet.learningRate).toString())
+          }
+
+        }
+
+      }
+
+      if (false) {
+      // if (useRandomAnswers ? (autoTrainStep.current > numberOfPossibleAnswers / 2) : autoTrainStep.current > numberOfPossibleAnswers) {
 
         // End of epoch
         if (randomInteger(0, 2) == 0) {
@@ -184,20 +235,30 @@ const GameScreen = () => {
 
 
         // setEndGameOnGuessWithDisabledLetter(!endGameOnGuessWithDisabledLetter)
-        let newWinRatio = (autoTrainGamesWonThisEpoch.current / autoTrainStep.current);
-        
-        setWinRatioOverTime([...winRatioOverTime, [autoTrainEpoch.current, newWinRatio]])
+        let newWinRatioThisEpoch = (autoTrainGamesWonThisEpoch.current / autoTrainStep.current);
+        let newWinRatio = (gamesWon / gamesPlayed);
+
+        setWinRatioOverTime([...winRatioOverTime, [autoTrainEpoch.current, newWinRatioThisEpoch]])
         setNetworkErrorOverTime([...networkErrorOverTime, [autoTrainEpoch.current, (autoTrainNeuralNetworkErrorThisEpoch.current / autoTrainStep.current)]])
+        
         autoTrainEpoch.current++;
         autoTrainStep.current = 0;
+        autoTrainStep.current++;
         autoTrainGamesWonThisEpoch.current = 0;
 
         autoTrainNeuralNetworkErrorThisEpoch.current = 0;
         
+
+
+
+
+
+
+
         if (newWinRatio > autoTranPreviousWinRatio.current) {
-          if (newWinRatio > 0.3) {
-            if (newWinRatio > 0.7) {
-              if (newWinRatio > 0.9) {
+          if (newWinRatioThisEpoch > 0.3) {
+            if (newWinRatioThisEpoch > 0.7) {
+              if (newWinRatioThisEpoch > 0.9) {
                 // turn off training
                 setAutoTrain(false)
                 setTrainingMode(false)
@@ -222,11 +283,11 @@ const GameScreen = () => {
           }
             let newM = m * autoTrainMomentumDecrease;
             let newLR = lr * autoTrainLearningRateDecrease;
-            if (newM > 0.0000000000001) {
+            if (newM > 0.0000000001) {
               textnnet.nnet.momentum = ((newM).toString());
               setMomentum((textnnet.nnet.momentum).toString())
             }
-            if (newLR > 0.0000000000001) {
+            if (newLR > 0.0000000001) {
               textnnet.nnet.learningRate = (newLR).toString();
               setLearningRate((textnnet.nnet.learningRate).toString())
             }
@@ -248,6 +309,10 @@ const GameScreen = () => {
         autoTranPreviousWinRatio.current =(newWinRatio);
       }
       
+
+      if (skipTrainingIfGameIsWon && guessList[guessList.length - 1] === wordToGuess.current) {
+        return;
+      }
       textnnet.train(null, null, null, getExpectedOutput(disabledLettersList, wordList, wordList.length, wordToGuessIndex.current, correctLettersList, presentLettersList, guessList));
       autoTrainNeuralNetworkErrorThisEpoch.current += Math.abs(textnnet.nnet.globalError);
       setnnError(textnnet.nnet.globalError);
@@ -300,14 +365,24 @@ const GameScreen = () => {
 
   useEffect(() => {
     const guessLen = guessList.length;
-
-
     let { disabledLettersList, correctLettersList, presentLettersList } = getPresentIncludedCorrectLetters(guessList, wordToGuess.current)
 
+
     if ((guessList[guessLen - 1] === wordToGuess.current) || guessLen === MAX_GUESSES || guessList[guessLen - 1] === "") {
+
+
+      if (guessList[guessLen - 1] === wordToGuess.current) {
+        setGamesWon(gamesWon + 1);
+        autoTrainGamesWonThisEpoch.current++;
+        autoTrainGamesWonHistory.current.push(1);
+      } else {
+        autoTrainGamesWonHistory.current.push(0);
+      }
+      autoTrainNumberOfGuessesHistory.current.push(guessList.length);
       trainAtEndOfGame(disabledLettersList, correctLettersList, presentLettersList);
       setTrainingList([]);
       setGameOver(true);
+      
     } else {
       disabledLetters.current = disabledLettersList;
       correctLetters.current = correctLettersList;
@@ -437,6 +512,8 @@ const GameScreen = () => {
     let invalid: string = "";
 
     if ((guessList.includes(nnBestGuess) || includesDisabledLetter(dl, nnBestGuess)) && (endGameOnGuessWithDisabledLetter || trainWithValidRandomGuess)) {
+      
+        
       invalid = "(invalid)";
       // If the very best guess is not valid, do some stuff
       if (endGameOnGuessWithDisabledLetter) {
@@ -477,14 +554,8 @@ const GameScreen = () => {
       }
 
     } else {
-      if (nnBestGuess === wordToGuess.current) {
-        setGamesWon(gamesWon + 1);
-        autoTrainGamesWonThisEpoch.current++;
-      }
+      
 
-      if (guessList.length > 0) {
-        setTurnsPlayedByAi(turnsPlayedByAi + 1);
-      }
       setGuessList(prev => [...prev, nnBestGuess]);
     }
     setNnGuess(invalid + nnBestGuess )
@@ -524,16 +595,20 @@ const GameScreen = () => {
       value: gamesWon
     },
     {
-      name: "Win Ratio",
-      value: (gamesWon / gamesPlayed).toFixed(5)
+      name: "Win Ratio (last " + autoTrainGamesWonHistory.current.length + " games)",
+      value: (autoTrainGamesWonThisEpoch.current / autoTrainGamesWonHistory.current.length).toFixed(5)
     },
     {
-      name: "Current Epoch Win Ratio",
-      value: (autoTrainGamesWonThisEpoch.current / autoTrainStep.current).toFixed(5)
+      name: "Best Win Ratio (across " + autoTrainGamesWonHistory.current.length + " games)",
+      value: (autoTrainBestGamesWonThisEpoch.current / autoTrainGamesWonHistory.current.length).toFixed(5)
     },
     {
-      name: "Previous Epoch Win Ratio",
-      value: autoTranPreviousWinRatio.current.toFixed(5)
+      name: "Average number of guesses (last " + autoTrainNumberOfGuessesHistory.current.length + " games)",
+      value: (autoTrainAverageNumberOfGuesses.current / autoTrainNumberOfGuessesHistory.current.length).toFixed(5)
+    },
+    {
+      name: "Best average number of guesses",
+      value: (autoTrainBestAverageNumberOfGuesses.current / autoTrainNumberOfGuessesHistory.current.length).toFixed(5)
     }
     
   ];
@@ -548,15 +623,15 @@ const GameScreen = () => {
     },
     {
       name: "Correct Answer Certainty",
-      value: answerCertainty?.toFixed(5)
+      value: answerCertainty?.toFixed(10)
     },
     {
       name: "Best Guess Certainty",
-      value: certainty.toFixed(5)
+      value: certainty.toFixed(10)
     },
     {
       name: "Neural Net Error",
-      value: nnError.toFixed(5)
+      value: nnError.toFixed(3)
     }
   ];
   const inputs = [
@@ -835,7 +910,7 @@ onChange={(e, value) => {
                         [[5]],
                         [
                           // game progress
-                          [1], [1], [1], [1], [1], [1],
+                          // [1], [1], [1], [1], [1], [1],
                           // other inputs
                           [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1]],
                         0,
@@ -1468,6 +1543,7 @@ function getPresentIncludedCorrectLetters(gl: string[], cw: string) {
 
 function generateGameProgress(totalTurns: number, currentTurn: number) {
   let turnsArray = [];
+  return turnsArray;
   while (turnsArray.length < totalTurns) {
     turnsArray.push([currentTurn > turnsArray.length ? 0 : 1]);
   }
